@@ -6,6 +6,7 @@ const url = require('url');
 const DATA_FILE = path.join(__dirname, 'data', 'teams.json');
 const GAME_CONFIG_FILE = path.join(__dirname, 'data', 'game-config.json');
 const ASSIGNMENTS_FILE = path.join(__dirname, 'data', 'assignments.json');
+const WORDLE_WORDS_FILE = path.join(__dirname, 'data', 'wordle-words.json');
 const PORT = 3000;
 
 // ── Reset teams on startup (event-day fresh state) ────────────────────────────
@@ -48,6 +49,37 @@ function getAssignments() {
   return readJsonSafe(ASSIGNMENTS_FILE, DEFAULT_ASSIGNMENTS);
 }
 
+function getWordleWords() {
+  const words = readJsonSafe(WORDLE_WORDS_FILE, []);
+  return Array.isArray(words) ? words.filter(w => String(w || '').trim().length === 5) : [];
+}
+
+function hashTeamName(name) {
+  const str = String(name || '');
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+function getTeamWordleIndex(team, teamName, words) {
+  if (!words.length) return 0;
+  if (Number.isInteger(team.wordleIndex) && team.wordleIndex >= 0) {
+    return team.wordleIndex % words.length;
+  }
+  const idx = hashTeamName(teamName) % words.length;
+  team.wordleIndex = idx;
+  return idx;
+}
+
+function getTeamWordleWord(team, teamName, words, fallback) {
+  if (!words.length) return String(fallback || '').toUpperCase();
+  const idx = getTeamWordleIndex(team, teamName, words);
+  return String(words[idx] || '').toUpperCase();
+}
+
 function normalizeFlowGroup(value, fallback) {
   const g = String(value || fallback || 'A').toUpperCase();
   return ['A', 'B', 'C', 'D'].includes(g) ? g : (fallback || 'A');
@@ -72,6 +104,7 @@ function getSeat(teamName, assignments) {
   return {
     flowGroup: normalizeFlowGroup(team && team.flowGroup, fallback.flowGroup),
     posterGroup: normalizePosterGroup(team && team.posterGroup),
+    qrCode: team && team.qrCode ? String(team.qrCode) : '',
     round2Order,
   };
 }
@@ -129,6 +162,7 @@ function getOrCreateTeam(teamName, teams) {
       audioSolvedAt: null,
       wordleGuesses: [],
       wordleSolved: false,
+      wordleIndex: null,
       penaltyUntil: null,
       totalStrikes: 0,
       hints: 0,
@@ -295,6 +329,7 @@ function handleAPI(req, res, parsedUrl) {
   req.on('end', () => {
     const gameConfig = getGameConfig();
     const assignments = getAssignments();
+    const wordleWords = getWordleWords();
     let data = {};
     try { data = JSON.parse(body || '{}'); } catch {}
 
@@ -327,6 +362,10 @@ function handleAPI(req, res, parsedUrl) {
       const team = teams[teamName] ? getOrCreateTeam(teamName, teams) : null;
       if (!team) return res.end(JSON.stringify({ ok: false, error: 'Not found' }));
       if (team.round1Phase === 'audio' && ensureRound1AudioStarted(team)) saveTeams(teams);
+      if (team.wordleIndex == null && wordleWords.length) {
+        team.wordleIndex = getTeamWordleIndex(team, team.name, wordleWords);
+        saveTeams(teams);
+      }
       return res.end(JSON.stringify({
         ok: true,
         teamName: team.name,
@@ -367,8 +406,16 @@ function handleAPI(req, res, parsedUrl) {
       if (!teamName || teamName.trim().length < 2)
         return res.end(JSON.stringify({ ok: false, error: 'Team name too short' }));
       const teams = loadTeams();
-      const team = getOrCreateTeam(teamName.trim().toUpperCase(), teams);
+      const normalizedName = teamName.trim().toUpperCase();
+      if (!assignments.teams || !assignments.teams[normalizedName]) {
+        return res.end(JSON.stringify({ ok: false, error: 'Team not registered' }));
+      }
+      const team = getOrCreateTeam(normalizedName, teams);
       let changed = false;
+      if (team.wordleIndex == null && wordleWords.length) {
+        team.wordleIndex = getTeamWordleIndex(team, team.name, wordleWords);
+        changed = true;
+      }
       const seat = getSeat(team.name, assignments);
       if (team.flowGroup !== seat.flowGroup) { team.flowGroup = seat.flowGroup; changed = true; }
       if (team.posterGroup !== seat.posterGroup) { team.posterGroup = seat.posterGroup; changed = true; }
@@ -448,11 +495,12 @@ function handleAPI(req, res, parsedUrl) {
       if (g.length !== 5)
         return res.end(JSON.stringify({ ok: false, error: 'Guess must be 5 letters' }));
 
-      const scored = scoreWordle(g, gameConfig.wordleWord);
+      const currentWord = getTeamWordleWord(team, team.name, wordleWords, gameConfig.wordleWord);
+      const scored = scoreWordle(g, currentWord);
       team.wordleGuesses = team.wordleGuesses || [];
       team.wordleGuesses.push({ guess: g, scored });
 
-      const won = g === String(gameConfig.wordleWord || '').toUpperCase();
+      const won = g === currentWord;
       const lost = !won && team.wordleGuesses.length >= 6;
 
       if (won) {
@@ -465,11 +513,14 @@ function handleAPI(req, res, parsedUrl) {
       if (lost) {
         team.wordleGuesses = [];
         team.totalStrikes++;
-        team.penaltyUntil = Date.now() + 60 * 1000;
+        if (wordleWords.length) {
+          const nextIndex = (getTeamWordleIndex(team, team.name, wordleWords) + 1) % wordleWords.length;
+          team.wordleIndex = nextIndex;
+        }
         saveTeams(teams);
         return res.end(JSON.stringify({
           ok: true, scored, won: false, lost: true,
-          penaltySeconds: 60, message: 'All guesses used. 60s penalty. Board reset.',
+          message: 'All guesses used. New word loaded. Board reset.',
         }));
       }
       saveTeams(teams);
@@ -556,6 +607,40 @@ function handleAPI(req, res, parsedUrl) {
         correct: false,
         penaltySeconds: gameConfig.round2Penalty,
         attemptsUsed: team.round2Attempts,
+      }));
+    }
+
+    // POST /api/submit-qr-code (Round 2 Poster access)
+    if (req.method === 'POST' && route === '/api/submit-qr-code') {
+      const { teamName, code } = data;
+      const teams = loadTeams();
+      const team = teams[teamName] ? getOrCreateTeam(teamName, teams) : null;
+      if (!team) return res.end(JSON.stringify({ ok: false, error: 'Team not found' }));
+      if (team.round1Phase !== 'done')
+        return res.end(JSON.stringify({ ok: false, error: 'Complete Round 1 first' }));
+      if (isPenalized(team)) {
+        return res.end(JSON.stringify({
+          ok: false,
+          penalized: true,
+          remaining: Math.ceil((team.penaltyUntil - Date.now()) / 1000),
+        }));
+      }
+
+      const seat = getSeat(team.name, assignments);
+      const expected = String(seat.qrCode || '').trim().toUpperCase();
+      const supplied = String(code || '').trim().toUpperCase();
+
+      if (!expected) return res.end(JSON.stringify({ ok: false, error: 'No access code assigned' }));
+      if (expected !== supplied) {
+        team.totalStrikes++;
+        team.penaltyUntil = Date.now() + 30 * 1000;
+        saveTeams(teams);
+        return res.end(JSON.stringify({ ok: false, error: 'Invalid code', penaltySeconds: 30 }));
+      }
+
+      return res.end(JSON.stringify({
+        ok: true,
+        posterGroup: seat.posterGroup || 0,
       }));
     }
 
