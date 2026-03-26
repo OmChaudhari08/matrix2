@@ -133,24 +133,51 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
     <div style="margin-top:8px;font-size:12px;color:var(--dim);">OPERATOR: <span id="team-name-disp" style="color:var(--green);font-weight:bold;">—</span></div>
   </div>
 
+  <!-- ── LOCKED ── -->
+  <div id="phase-locked" class="card" style="display:none">
+    <div class="card-title">ACCESS DENIED <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// COMPLETE ROUND 1</span></div>
+    <div class="lore">
+      Round 2 is only available after finishing both tasks in Round 1.<br>
+      Return to your mobile device, complete Round 1, then come back.
+    </div>
+  </div>
+
+  <!-- ── REGISTER (Lab) ── -->
+  <div id="phase-register" class="card" style="display:none">
+    <div class="card-title">IDENTIFY YOUR TEAM <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// LAB ACCESS</span></div>
+    <div class="lore">
+      Enter your team name to unlock Round 2.<br>
+      Use the exact registered name.
+    </div>
+    <input type="text" id="lab-team-input" placeholder="Team name..." maxlength="40"
+      style="text-transform:uppercase" />
+    <button class="btn" style="margin-top:12px;" onclick="registerLabTeam()">ENTER LAB</button>
+    <div class="msg msg-err" id="lab-reg-err"></div>
+  </div>
+
   <!-- ── POSTER INSTRUCTIONS (Group A/B see this first) ── -->
   <div id="phase-poster-instructions" class="card" style="display:none">
     <div class="card-title">PHASE 1 — SIGNAL INTERCEPT <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// QR POSTER</span></div>
     <div class="lore">
       Your first task is out in the field.<br>
       A <span>QR poster</span> has been placed somewhere in the room.<br>
-      Find it. Scan it. Solve the cipher.<br>
-      Return here once Phase 1 is complete.
+      Near it you will find a <span>5‑letter access code</span>.<br>
+      Enter that code below to unlock the poster puzzle.
     </div>
     <div class="intro-rule">
       <strong>// INSTRUCTIONS //</strong><br>
-      Locate the QR poster assigned to your group.<br>
-      Scan the QR code with your phone.<br>
-      Solve the Caesar cipher puzzle on that page.<br>
-      Once solved, come back here for <strong>Phase 2</strong>.
+      Locate the poster assigned to your group.<br>
+      Find the 5‑letter access code posted nearby.<br>
+      Enter it here to unlock the Caesar cipher puzzle.<br>
+      Once solved, return to complete <strong>Phase 2</strong>.
     </div>
     <div id="poster-done-check" style="margin-top:8px;">
-      <button class="btn" onclick="checkPosterDone()">✓ I HAVE COMPLETED PHASE 1 — CONTINUE</button>
+      <div class="answer-sub" style="margin-bottom:10px;">
+        Enter the 5-letter access code displayed near the QR poster.
+      </div>
+      <input type="text" id="poster-access-code" placeholder="ACCESS CODE" maxlength="5"
+        style="text-transform:uppercase;letter-spacing:0.3em;text-align:center;" />
+      <button class="btn" style="margin-top:12px;" onclick="submitPosterAccess()">✓ UNLOCK POSTER</button>
       <div class="msg msg-err" id="poster-check-err" style="margin-top:10px;"></div>
     </div>
   </div>
@@ -260,7 +287,7 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
 })();
 
 // ── State ─────────────────────────────────────────────────────────────────────
-const teamName = localStorage.getItem('matrixTeam') || 'UNKNOWN';
+let teamName = localStorage.getItem('matrixTeam') || 'UNKNOWN';
 document.getElementById('team-name-disp').textContent = teamName;
 
 let currentArticle = 0;
@@ -380,7 +407,7 @@ if (denimArticle) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showPhase(p) {
-  ['poster-instructions','intro','articles','answer','done'].forEach(x =>
+  ['locked','register','poster-instructions','intro','articles','answer','done'].forEach(x =>
     document.getElementById('phase-'+x).style.display = x===p ? '' : 'none');
 }
 function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
@@ -488,12 +515,21 @@ async function submitAnswer() {
 
   if (r.correct) {
     showMsg('ans-ok', '✓ SIGNAL VERIFIED — decoding complete...');
-    setTimeout(() => {
+    setTimeout(async () => {
       document.getElementById('r2-digit-display').textContent =
         r.digit ? `YOUR DIGIT: ${r.digit}` : '';
-      showPhase('done');
-      fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
-        .then(x => x.json()).then(updateDoneState).catch(() => updateDoneState(null));
+      try {
+        const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`).then(x => x.json());
+        if (state && state.ok && state.round2PosterPhase !== 'done') {
+          showPhase('poster-instructions');
+          return;
+        }
+        showPhase('done');
+        updateDoneState(state);
+      } catch {
+        showPhase('done');
+        updateDoneState(null);
+      }
     }, 900);
   } else {
     showMsg('ans-err', `✗ SIGNAL MISMATCH. Check your words and remember — signals travel in reverse.`);
@@ -526,29 +562,81 @@ function startPenalty(sec) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 let teamRound2Order = 'poster-first'; // default, overwritten by API
 
-async function checkPosterDone() {
-  const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
-    .then(x => x.json()).catch(() => null);
-  if (state && state.ok && state.round2PosterPhase === 'done') {
-    showPhase('intro');
-  } else {
-    const e = document.getElementById('poster-check-err');
-    e.textContent = '✗ Phase 1 not complete yet. Solve the QR poster first.';
-    e.classList.add('show');
-    setTimeout(() => e.classList.remove('show'), 3000);
-  }
+function requireTeamName() {
+  return !!(teamName && teamName !== 'UNKNOWN');
 }
 
-(async function init() {
+async function registerLabTeam() {
+  const v = document.getElementById('lab-team-input').value.trim().toUpperCase();
+  clearMsg('lab-reg-err');
+  if (v.length < 2) { showMsg('lab-reg-err', 'Team name too short'); return; }
+  const r = await fetch('/api/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamName: v })
+  }).then(x => x.json());
+  if (!r.ok) { showMsg('lab-reg-err', r.error || 'Registration failed'); return; }
+  localStorage.setItem('matrixTeam', r.team.name);
+  teamName = r.team.name;
+  document.getElementById('team-name-disp').textContent = teamName;
+  init();
+}
+
+async function submitPosterAccess() {
+  const code = document.getElementById('poster-access-code').value.trim().toUpperCase();
+  const e = document.getElementById('poster-check-err');
+  e.textContent = '';
+  e.classList.remove('show');
+  if (!code || code.length !== 5) {
+    e.textContent = 'Enter the 5-letter access code.';
+    e.classList.add('show');
+    return;
+  }
+
+  const r = await fetch('/api/submit-qr-code', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamName, code })
+  }).then(x => x.json()).catch(() => null);
+
+  if (!r || !r.ok) {
+    if (r && r.penalized) {
+      e.textContent = `Penalty active. Wait ${r.remaining}s.`;
+    } else {
+      e.textContent = (r && r.error) ? r.error : 'Invalid code. Try again.';
+    }
+    e.classList.add('show');
+    return;
+  }
+
+  if (!r.posterGroup) {
+    e.textContent = 'Poster group not assigned yet.';
+    e.classList.add('show');
+    return;
+  }
+
+  window.location.href = `/round2/poster/${r.posterGroup}`;
+}
+
+async function init() {
+  if (!requireTeamName()) { showPhase('register'); return; }
   // Check if already completed round 2
   const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
     .then(x => x.json()).catch(() => null);
 
   if (state && state.ok) {
+    if (state.round1Phase !== 'done') {
+      showPhase('locked');
+      return;
+    }
     teamRound2Order = state.round2Order || 'poster-first';
 
     // Round 2 articles already done
     if (state.round2ArticlesPhase === 'done') {
+      if (state.round2PosterPhase !== 'done') {
+        showPhase('poster-instructions');
+        return;
+      }
       showPhase('done');
       updateDoneState(state);
       return;
@@ -577,10 +665,18 @@ async function checkPosterDone() {
   }
   // Fallback
   showPhase('intro');
-})();
+}
+
+init();
 
 document.getElementById('answer-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') submitAnswer();
+});
+document.getElementById('lab-team-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') registerLabTeam();
+});
+document.getElementById('poster-access-code')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitPosterAccess();
 });
 </script>
 </body>

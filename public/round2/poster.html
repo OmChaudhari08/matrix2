@@ -240,7 +240,9 @@ async function submitAnswer() {
 
   if (r.correct) {
     showMsg('ans-ok','✓ DECRYPTION VERIFIED');
-    setTimeout(() => showPhase('done'), 800);
+    setTimeout(() => {
+      window.location.href = '/round2/articles';
+    }, 800);
   } else {
     showMsg('ans-err','✗ WRONG DECRYPTION. Check your shift and try again.');
     if (r.penaltySeconds) startPenalty(r.penaltySeconds);

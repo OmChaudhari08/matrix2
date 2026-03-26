@@ -1,48 +1,170 @@
 {
-  "ALPHA TEAM": {
-    "name": "ALPHA TEAM",
+  "TEAM HUNTERS": {
+    "name": "TEAM HUNTERS",
     "flowGroup": "A",
-    "posterGroup": 0,
+    "posterGroup": 2,
     "round1Phase": "done",
-    "round1AudioStartedAt": 1774554529121,
+    "round1AudioStartedAt": 1774557557209,
     "round2ArticlesPhase": "done",
     "round2PosterPhase": "done",
     "round2Attempts": 1,
-    "audioSolvedAt": 1774554535861,
+    "audioSolvedAt": 1774557561524,
     "wordleGuesses": [
       {
-        "guess": "SMITH",
+        "guess": "LOGIC",
         "scored": [
           {
-            "letter": "S",
-            "result": "correct"
+            "letter": "L",
+            "result": "absent"
           },
           {
-            "letter": "M",
-            "result": "correct"
+            "letter": "O",
+            "result": "present"
+          },
+          {
+            "letter": "G",
+            "result": "absent"
           },
           {
             "letter": "I",
-            "result": "correct"
+            "result": "absent"
+          },
+          {
+            "letter": "C",
+            "result": "absent"
+          }
+        ]
+      },
+      {
+        "guess": "QWERT",
+        "scored": [
+          {
+            "letter": "Q",
+            "result": "absent"
+          },
+          {
+            "letter": "W",
+            "result": "absent"
+          },
+          {
+            "letter": "E",
+            "result": "present"
+          },
+          {
+            "letter": "R",
+            "result": "absent"
           },
           {
             "letter": "T",
+            "result": "absent"
+          }
+        ]
+      },
+      {
+        "guess": "CODEX",
+        "scored": [
+          {
+            "letter": "C",
+            "result": "absent"
+          },
+          {
+            "letter": "O",
+            "result": "present"
+          },
+          {
+            "letter": "D",
+            "result": "absent"
+          },
+          {
+            "letter": "E",
+            "result": "present"
+          },
+          {
+            "letter": "X",
+            "result": "absent"
+          }
+        ]
+      },
+      {
+        "guess": "NODES",
+        "scored": [
+          {
+            "letter": "N",
             "result": "correct"
           },
           {
-            "letter": "H",
+            "letter": "O",
+            "result": "present"
+          },
+          {
+            "letter": "D",
+            "result": "absent"
+          },
+          {
+            "letter": "E",
+            "result": "present"
+          },
+          {
+            "letter": "S",
+            "result": "correct"
+          }
+        ]
+      },
+      {
+        "guess": "NEONS",
+        "scored": [
+          {
+            "letter": "N",
+            "result": "correct"
+          },
+          {
+            "letter": "E",
+            "result": "correct"
+          },
+          {
+            "letter": "O",
+            "result": "correct"
+          },
+          {
+            "letter": "N",
+            "result": "correct"
+          },
+          {
+            "letter": "S",
             "result": "correct"
           }
         ]
       }
     ],
     "wordleSolved": true,
+    "wordleIndex": 0,
     "penaltyUntil": null,
     "totalStrikes": 0,
     "hints": 0,
-    "startTime": 1774554519766,
+    "startTime": 1774557552974,
     "finished": false,
     "finishTime": null,
     "layer": 4
+  },
+  "TEAM PIRATES": {
+    "name": "TEAM PIRATES",
+    "flowGroup": "A",
+    "posterGroup": 4,
+    "round1Phase": "audio",
+    "round1AudioStartedAt": 1774557664512,
+    "round2ArticlesPhase": "locked",
+    "round2PosterPhase": "locked",
+    "round2Attempts": 0,
+    "audioSolvedAt": null,
+    "wordleGuesses": [],
+    "wordleSolved": false,
+    "wordleIndex": 7,
+    "penaltyUntil": null,
+    "totalStrikes": 0,
+    "hints": 0,
+    "startTime": 1774557664511,
+    "finished": false,
+    "finishTime": null,
+    "layer": 1
   }
 }
