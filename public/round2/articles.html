@@ -42,22 +42,6 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .blink{animation:blink 1.2s step-end infinite;}
 
-/* ── PHASE: LAB REVEAL ── */
-#phase-lab{text-align:center;}
-.lab-box{background:rgba(0,255,65,0.06);border:1px solid var(--green);border-radius:2px;
-  padding:36px;margin:10px 0;box-shadow:0 0 40px rgba(0,255,65,0.1);}
-.lab-big{font-family:var(--display);font-size:52px;font-weight:900;color:var(--green);
-  text-shadow:0 0 24px rgba(0,255,65,0.6);letter-spacing:0.05em;}
-.lab-pc{font-family:var(--display);font-size:32px;font-weight:700;color:var(--dim);margin-top:6px;}
-.lab-instr{font-size:12px;color:var(--dim);margin-top:18px;letter-spacing:0.12em;line-height:1.9;}
-.countdown-ring{margin:20px auto 0;width:90px;height:90px;position:relative;}
-.countdown-ring svg{transform:rotate(-90deg);}
-.countdown-ring circle{fill:none;stroke:rgba(0,255,65,0.15);stroke-width:4;}
-.countdown-ring .progress{stroke:var(--green);stroke-width:4;stroke-linecap:round;
-  stroke-dasharray:251.2;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear;}
-.countdown-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  font-family:var(--display);font-size:28px;font-weight:900;color:var(--green);}
-
 /* ── PHASE: INTRO ── */
 #phase-intro .lore{font-size:13px;color:var(--dim);line-height:2.2;margin-bottom:20px;letter-spacing:0.05em;}
 #phase-intro .lore span{color:var(--green);}
@@ -147,26 +131,6 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
     <div style="font-family:var(--display);font-size:28px;font-weight:900;letter-spacing:0.12em;text-shadow:0 0 24px rgba(0,255,65,0.5);">⬡ ESCAPE THE MATRIX</div>
     <div style="font-size:11px;color:var(--dim);letter-spacing:0.3em;margin-top:6px;">// ROUND 2 — THE SIGNAL //</div>
     <div style="margin-top:8px;font-size:12px;color:var(--dim);">OPERATOR: <span id="team-name-disp" style="color:var(--green);font-weight:bold;">—</span></div>
-  </div>
-
-  <!-- ── LAB REVEAL ── -->
-  <div id="phase-lab" class="card" style="display:none">
-    <div class="card-title" style="text-align:center;"> ROUND 1 COMPLETE — ACCESS GRANTED</div>
-    <div class="lab-box">
-      <div class="lab-big" id="lab-name">LAB 2</div>
-      <div class="lab-pc" id="lab-pc">PC 07</div>
-      <div class="lab-instr" id="lab-instr">Proceed immediately. Tell no one your path.</div>
-    </div>
-    <div class="countdown-ring">
-      <svg width="90" height="90" viewBox="0 0 90 90">
-        <circle cx="45" cy="45" r="40"/>
-        <circle class="progress" id="ring-progress" cx="45" cy="45" r="40"/>
-      </svg>
-      <div class="countdown-num" id="ring-num">15</div>
-    </div>
-    <p style="text-align:center;font-size:11px;color:var(--dim);margin-top:10px;letter-spacing:0.2em;">
-      MEMORISE THIS — SCREEN CLEARS IN <span id="cd-sec" style="color:var(--amber);">15</span>s
-    </p>
   </div>
 
   <!-- ── POSTER INSTRUCTIONS (Group A/B see this first) ── -->
@@ -274,7 +238,7 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
       <div class="done-sub">
         Signal verified. Round 2 complete.<br>
         <span style="color:var(--green);font-size:14px;" id="r2-digit-display"></span><br>
-        Await instructions for Round 3.
+        <span id="r2-next-step">Await instructions.</span>
       </div>
     </div>
   </div>
@@ -416,43 +380,13 @@ if (denimArticle) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function showPhase(p) {
-  ['lab','poster-instructions','intro','articles','answer','done'].forEach(x =>
+  ['poster-instructions','intro','articles','answer','done'].forEach(x =>
     document.getElementById('phase-'+x).style.display = x===p ? '' : 'none');
 }
 function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
 function clearMsg(id){const e=document.getElementById(id);e.textContent='';e.classList.remove('show');}
 
 // ── Lab countdown ─────────────────────────────────────────────────────────────
-function startLabCountdown(reveal) {
-  document.getElementById('lab-name').textContent = reveal.lab;
-  document.getElementById('lab-pc').textContent   = reveal.pc;
-  document.getElementById('lab-instr').textContent = reveal.instruction;
-  showPhase('lab');
-
-  const total = 15;
-  const circumference = 251.2;
-  let remaining = total;
-  const ring = document.getElementById('ring-progress');
-  const num  = document.getElementById('ring-num');
-  const sec  = document.getElementById('cd-sec');
-
-  const iv = setInterval(() => {
-    remaining--;
-    num.textContent = remaining;
-    sec.textContent = remaining;
-    ring.style.strokeDashoffset = circumference * (1 - remaining / total);
-    if (remaining <= 0) {
-      clearInterval(iv);
-      // Route based on group after lab countdown
-      if (teamRound2Order === 'poster-first') {
-        showPhase('poster-instructions');
-      } else {
-        showPhase('intro');
-      }
-    }
-  }, 1000);
-}
-
 // ── Article rendering ─────────────────────────────────────────────────────────
 function renderArticle(idx) {
   currentArticle = idx;
@@ -507,6 +441,19 @@ function renderArticle(idx) {
   }
 }
 
+function updateDoneState(state) {
+  const next = document.getElementById('r2-next-step');
+  if (!state || !state.ok) {
+    next.textContent = 'Await instructions.';
+    return;
+  }
+  if (state.round2PosterPhase !== 'done') {
+    next.textContent = 'Proceed to the QR poster to complete Round 2.';
+  } else {
+    next.textContent = 'Round 2 complete. Await instructions.';
+  }
+}
+
 function nextArticle() {
   if (currentArticle < ARTICLES.length - 1) renderArticle(currentArticle + 1);
 }
@@ -545,6 +492,8 @@ async function submitAnswer() {
       document.getElementById('r2-digit-display').textContent =
         r.digit ? `YOUR DIGIT: ${r.digit}` : '';
       showPhase('done');
+      fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
+        .then(x => x.json()).then(updateDoneState).catch(() => updateDoneState(null));
     }, 900);
   } else {
     showMsg('ans-err', `✗ SIGNAL MISMATCH. Check your words and remember — signals travel in reverse.`);
@@ -580,7 +529,7 @@ let teamRound2Order = 'poster-first'; // default, overwritten by API
 async function checkPosterDone() {
   const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
     .then(x => x.json()).catch(() => null);
-  if (state && state.ok && state.round2bPhase === 'done') {
+  if (state && state.ok && state.round2PosterPhase === 'done') {
     showPhase('intro');
   } else {
     const e = document.getElementById('poster-check-err');
@@ -599,28 +548,22 @@ async function checkPosterDone() {
     teamRound2Order = state.round2Order || 'poster-first';
 
     // Round 2 articles already done
-    if (state.round2Phase === 'done') {
+    if (state.round2ArticlesPhase === 'done') {
       showPhase('done');
+      updateDoneState(state);
       return;
     }
 
     // Mid-articles or answer phase — resume
-    if (state.round2Phase === 'articles' || state.round2Phase === 'answer') {
+    if (state.round2ArticlesPhase === 'articles' || state.round2ArticlesPhase === 'answer') {
       showPhase('intro');
-      return;
-    }
-
-    // Lab reveal still needed
-    if (state.reveal) {
-      teamRound2Order = state.round2Order || 'poster-first';
-      startLabCountdown(state.reveal);
       return;
     }
 
     // Post-lab-reveal routing based on group
     if (teamRound2Order === 'poster-first') {
-      // Group A/B: check if poster already done, if so go to intro
-      if (state.round2bPhase === 'done') {
+      // Poster-first: check if poster already done, if so go to intro
+      if (state.round2PosterPhase === 'done') {
         showPhase('intro');
       } else {
         showPhase('poster-instructions');

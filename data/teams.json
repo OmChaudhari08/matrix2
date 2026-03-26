@@ -1,1 +1,48 @@
-{}
+{
+  "ALPHA TEAM": {
+    "name": "ALPHA TEAM",
+    "flowGroup": "A",
+    "posterGroup": 0,
+    "round1Phase": "done",
+    "round1AudioStartedAt": 1774554529121,
+    "round2ArticlesPhase": "done",
+    "round2PosterPhase": "done",
+    "round2Attempts": 1,
+    "audioSolvedAt": 1774554535861,
+    "wordleGuesses": [
+      {
+        "guess": "SMITH",
+        "scored": [
+          {
+            "letter": "S",
+            "result": "correct"
+          },
+          {
+            "letter": "M",
+            "result": "correct"
+          },
+          {
+            "letter": "I",
+            "result": "correct"
+          },
+          {
+            "letter": "T",
+            "result": "correct"
+          },
+          {
+            "letter": "H",
+            "result": "correct"
+          }
+        ]
+      }
+    ],
+    "wordleSolved": true,
+    "penaltyUntil": null,
+    "totalStrikes": 0,
+    "hints": 0,
+    "startTime": 1774554519766,
+    "finished": false,
+    "finishTime": null,
+    "layer": 4
+  }
+}

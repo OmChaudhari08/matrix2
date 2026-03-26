@@ -130,6 +130,9 @@ input[type=text]:disabled{opacity:0.4;}
       To decrypt: shift each letter <strong>backwards</strong> by the same amount.<br>
       Example (shift 3): <strong>D → A &nbsp; E → B &nbsp; F → C</strong><br>
       Numbers, spaces, and punctuation are unchanged.
+      <div style="margin-top:8px;">
+        <strong>// SHIFT KEY //</strong> <span id="shift-key">?</span>
+      </div>
     </div>
 
     <div class="cipher-label">// ENCRYPTED TRANSMISSION //</div>
@@ -179,54 +182,9 @@ input[type=text]:disabled{opacity:0.4;}
       ctx.globalAlpha=1;if(y*16>c.height&&Math.random()>0.975)d[i]=0;else d[i]++;});},60);
 })();
 
-// ── Config ────────────────────────────────────────────────────────
-// Each group: { shift, plaintext, ciphertext, label }
-// Plaintext answers are single words — Matrix-themed
-// Ciphertext = plaintext Caesar-shifted forward by `shift`
-
-const GROUPS = {
-  1: {
-    label:      'GROUP 1',
-    shift:      3,
-    plaintext:  'ORACLE',
-    // ORACLE shifted +3 → RUDOHH  (O+3=R, R+3=U, A+3=D, C+3=F, L+3=O, E+3=H)
-    ciphertext: 'RUDOFH',
-    // Full encrypted transmission message:
-    message:    'WKH WUXWK LV QRW IRXQG — LW LV UHPHPEHUHG. FRQWDFW: RUDOFH',
-    // Plain: "THE TRUTH IS NOT FOUND — IT IS REMEMBERED. CONTACT: ORACLE"
-  },
-  2: {
-    label:      'GROUP 2',
-    shift:      7,
-    plaintext:  'ZION',
-    // ZION shifted +7 → GPVU  (Z+7=G, I+7=P, O+7=V, N+7=U)
-    ciphertext: 'GPVU',
-    message:    'AOL SHZA OPKPUN WSHZL VM AOL MYLL. KLZAPUHAPVU: GPVU',
-    // Plain: "THE LAST HIDING PLACE OF THE FREE. DESTINATION: ZION"
-  },
-  3: {
-    label:      'GROUP 3',
-    shift:      13,
-    plaintext:  'NEBUCHADNEZZAR',
-    // NEBUCHADNEZZAR shifted +13 (ROT13) → ARHPUNQARMMNE
-    ciphertext: 'ARHPUNQARMMNE',
-    message:    'GUR FUVB GUNG PNEEVRF GUR PUBFRA. NZFV PNYY FVTA: ARHPUNQARMMNE',
-    // Plain: "THE SHIP THAT CARRIES THE CHOSEN. AMSI CALL SIGN: NEBUCHADNEZZAR"
-  },
-  4: {
-    label:      'GROUP 4',
-    shift:      21,
-    plaintext:  'MORPHEUS',
-    // MORPHEUS shifted +21 → HJMKCZPN  (M+21=H, O+21=J, R+21=M, P+21=K, H+21=C, E+21=Z, U+21=P, S+21=N)
-    ciphertext: 'HJMKCZPN',
-    message:    'OCZ JGYZNO WZGDZMZM JA OCZ OMPON. XJIIPIDXVOZ RDOC: HJMKCZPN',
-    // Plain: "THE OLDEST BELIEVER OF THE TRUTH. COMMUNICATE WITH: MORPHEUS"
-  }
-};
-
 // ── State ─────────────────────────────────────────────────────────
 const teamName   = localStorage.getItem('matrixTeam') || 'UNKNOWN';
-let teamGroup    = parseInt(localStorage.getItem('matrixGroup') || '0');
+let teamPosterGroup = parseInt(localStorage.getItem('matrixPosterGroup') || localStorage.getItem('matrixGroup') || '0');
 // posterGroup = which poster was scanned (from URL path /poster/1 etc)
 const posterGroup = parseInt(window.location.pathname.split('/').pop()) || 0;
 
@@ -291,7 +249,7 @@ async function submitAnswer() {
 
 // ── Init ──────────────────────────────────────────────────────────
 (async function init() {
-  if (!posterGroup || !GROUPS[posterGroup]) {
+  if (!posterGroup) {
     showPhase('wrong');
     return;
   }
@@ -300,26 +258,34 @@ async function submitAnswer() {
   const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
     .then(x => x.json()).catch(()=>null);
   if (state && state.ok) {
-    if (typeof state.group === 'number') {
-      teamGroup = state.group;
-      localStorage.setItem('matrixGroup', String(state.group));
+    if (typeof state.posterGroup === 'number') {
+      teamPosterGroup = state.posterGroup;
+      localStorage.setItem('matrixPosterGroup', String(state.posterGroup));
+      localStorage.setItem('matrixGroup', String(state.posterGroup));
     }
-    if (state.round2bPhase === 'done') {
+    if (state.round2PosterPhase === 'done') {
       showPhase('done'); return;
     }
   }
 
   // Check if team is scanning the right poster
-  if (teamGroup && teamGroup !== posterGroup) {
-    document.getElementById('correct-group-label').textContent = `GROUP ${teamGroup}`;
+  if (teamPosterGroup && teamPosterGroup !== posterGroup) {
+    document.getElementById('correct-group-label').textContent = `GROUP ${teamPosterGroup}`;
     showPhase('wrong');
     return;
   }
 
-  // Show puzzle
-  const g = GROUPS[posterGroup];
-  document.getElementById('group-badge').textContent = g.label;
-  document.getElementById('cipher-text').textContent = g.message;
+  // Load poster config
+  const cfg = await fetch(`/api/poster-config?group=${posterGroup}`)
+    .then(x => x.json()).catch(() => null);
+  if (!cfg || !cfg.ok || !cfg.group) {
+    showPhase('wrong');
+    return;
+  }
+
+  document.getElementById('group-badge').textContent = cfg.group.label || `GROUP ${posterGroup}`;
+  document.getElementById('cipher-text').textContent = cfg.group.message || '—';
+  document.getElementById('shift-key').textContent = String(cfg.group.shift || 0);
   showPhase('puzzle');
 })();
 
