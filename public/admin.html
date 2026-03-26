@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>MATRIX — ADMIN</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#00ff41;--dim:#00b32c;--bg:#020d06;--panel:rgba(0,18,7,0.95);--border:rgba(0,255,65,0.2);--red:#ff2244;--amber:#ffb300;--mono:'Share Tech Mono',monospace;--display:'Rajdhani',sans-serif;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--green);font-family:var(--mono);min-height:100vh;padding:24px;}
+  h1{font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:0.1em;margin-bottom:4px;}
+  .sub{font-size:11px;color:var(--dim);letter-spacing:0.2em;margin-bottom:20px;}
+
+  /* Broadcast control */
+  .control-bar{display:flex;gap:12px;align-items:center;margin-bottom:24px;padding:16px 20px;background:var(--panel);border:1px solid var(--border);border-radius:2px;}
+  .control-bar h2{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:0.1em;flex:1;}
+  .broadcast-btn{padding:10px 24px;background:transparent;border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:13px;letter-spacing:0.15em;cursor:pointer;border-radius:2px;transition:all 0.2s;}
+  .broadcast-btn:hover{background:rgba(0,255,65,0.1);box-shadow:0 0 16px rgba(0,255,65,0.2);}
+  .broadcast-btn:disabled{opacity:0.3;cursor:not-allowed;}
+  .broadcast-btn.fired{border-color:var(--dim);color:var(--dim);}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:#333;flex-shrink:0;transition:all 0.3s;}
+  .status-dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 1.5s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+  .status-label{font-size:11px;color:var(--dim);letter-spacing:0.15em;}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+  .stat{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:2px;}
+  .stat-val{font-family:var(--display);font-size:32px;font-weight:700;}
+  .stat-label{font-size:10px;color:var(--dim);letter-spacing:0.2em;margin-top:3px;}
+
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:10px;letter-spacing:0.2em;color:var(--dim);padding:8px 10px;border-bottom:1px solid var(--border);}
+  td{padding:9px 10px;border-bottom:1px solid rgba(0,255,65,0.07);font-size:12px;vertical-align:middle;}
+  tr:hover td{background:rgba(0,255,65,0.03);}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:2px;font-size:10px;letter-spacing:0.1em;}
+  .b-wait{background:rgba(0,255,65,0.05);color:var(--dim);border:1px solid rgba(0,255,65,0.15);}
+  .b-audio{background:rgba(255,179,0,0.1);color:var(--amber);border:1px solid rgba(255,179,0,0.3);}
+  .b-wordle{background:rgba(0,100,255,0.1);color:#4488ff;border:1px solid rgba(0,100,255,0.3);}
+  .b-done{background:rgba(0,255,65,0.15);color:var(--green);border:1px solid rgba(0,255,65,0.4);}
+  .b-r2locked{background:rgba(0,255,65,0.04);color:rgba(0,255,65,0.35);border:1px solid rgba(0,255,65,0.12);}
+  .b-r2docs{background:rgba(68,136,255,0.1);color:#4488ff;border:1px solid rgba(68,136,255,0.3);}
+  .b-r2answer{background:rgba(255,179,0,0.1);color:var(--amber);border:1px solid rgba(255,179,0,0.3);}
+  .b-r2done{background:rgba(0,255,65,0.15);color:var(--green);border:1px solid rgba(0,255,65,0.4);}
+
+  .refresh-note{float:right;font-size:10px;color:var(--dim);}
+</style>
+</head>
+<body>
+<h1>MATRIX ESCAPE — ADMIN</h1>
+<div class="sub">// OPERATOR CONTROL SYSTEM &nbsp;·&nbsp; AUTO-REFRESH 5s &nbsp;·&nbsp; <span class="refresh-note" id="last-refresh">–</span></div>
+
+<!-- BROADCAST CONTROL -->
+<div class="control-bar">
+  <div class="status-dot" id="status-dot"></div>
+  <div>
+    <div style="font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:0.08em;">AUDIO BROADCAST</div>
+    <div class="status-label" id="status-label">PHASE: WAITING</div>
+  </div>
+  <div style="flex:1"></div>
+  <div style="font-size:11px;color:var(--dim);text-align:right;margin-right:12px;" id="clients-count">— clients connected</div>
+  <button class="broadcast-btn" id="broadcast-btn" onclick="broadcastAudio()">🔊 BROADCAST AUDIO NOW</button>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<table>
+  <thead><tr>
+    <th>#</th><th>TEAM</th><th>R1 PHASE</th><th>R2 PHASE</th><th>LAYER</th><th>TIME</th><th>STRIKES</th><th>HINTS</th>
+  </tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+let audioBroadcasted = false;
+
+async function broadcastAudio(){
+  if(!confirm('Broadcast audio to ALL connected teams now?'))return;
+  const r=await fetch('/api/admin/broadcast-audio',{method:'POST'}).then(x=>x.json());
+  if(r.ok){
+    audioBroadcasted=true;
+    const btn=document.getElementById('broadcast-btn');
+    btn.textContent='✓ AUDIO BROADCAST SENT';
+    btn.classList.add('fired');
+    btn.disabled=true;
+    document.getElementById('status-dot').classList.add('live');
+    document.getElementById('status-label').textContent=`PHASE: AUDIO LIVE — ${r.clientsNotified} clients notified`;
+  }
+}
+
+function fmt(ms){if(!ms)return'–';const s=Math.floor(ms/1000),m=Math.floor(s/60),r=s%60;return`${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;}
+
+async function refresh(){
+  try{
+    const d=await fetch('/api/teams').then(r=>r.json());
+    if(!d.ok)return;
+    const teams=d.teams;
+
+    const waiting=teams.filter(t=>t.round1Phase==='waiting').length;
+    const audio=teams.filter(t=>t.round1Phase==='audio').length;
+    const wordle=teams.filter(t=>t.round1Phase==='wordle').length;
+    const round2=teams.filter(t=>(t.round2Phase||'locked')!=='locked').length;
+    const cleared=teams.filter(t=>(t.round2Phase||'locked')==='done').length;
+
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="stat-val" style="color:var(--dim)">${waiting}</div><div class="stat-label">WAITING</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--amber)">${audio}</div><div class="stat-label">ON AUDIO</div></div>
+      <div class="stat"><div class="stat-val" style="color:#4488ff">${wordle}</div><div class="stat-label">ON WORDLE</div></div>
+      <div class="stat"><div class="stat-val" style="color:#4488ff">${round2}</div><div class="stat-label">IN ROUND 2</div></div>
+      <div class="stat"><div class="stat-val" style="color:var(--green)">${cleared}</div><div class="stat-label">CLEARED R2</div></div>
+    `;
+
+    document.getElementById('tbody').innerHTML=teams.map((t,i)=>{
+      const phase=t.round1Phase||'waiting';
+      const badgeClass={waiting:'b-wait',audio:'b-audio',wordle:'b-wordle',done:'b-done'}[phase]||'b-wait';
+      const r2=t.round2Phase||'locked';
+      const r2BadgeClass={locked:'b-r2locked',articles:'b-r2docs',answer:'b-r2answer',done:'b-r2done'}[r2]||'b-r2locked';
+      return`<tr>
+        <td style="color:rgba(0,255,65,0.4);font-family:var(--display);font-size:16px;font-weight:700">${i+1}</td>
+        <td style="font-family:var(--display);font-weight:700;font-size:15px">${t.name}</td>
+        <td><span class="badge ${badgeClass}">${phase.toUpperCase()}</span></td>
+        <td><span class="badge ${r2BadgeClass}">${r2.toUpperCase()}</span></td>
+        <td style="color:var(--dim)">${t.layer||1}</td>
+        <td>${fmt(t.elapsed)}</td>
+        <td style="color:${t.totalStrikes>4?'var(--red)':t.totalStrikes>2?'var(--amber)':'inherit'}">${t.totalStrikes}</td>
+        <td>${t.hints||0}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('last-refresh').textContent='Updated '+new Date().toLocaleTimeString();
+  }catch(e){console.error(e);}
+}
+
+refresh();
+setInterval(refresh,5000);
+</script>
+</body>
+</html>

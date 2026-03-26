@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>MATRIX — LEADERBOARD</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00ff41;
+    --green-dim: #00b32c;
+    --green-dark: #001a08;
+    --bg: #020d06;
+    --amber: #ffb300;
+    --red: #ff2244;
+    --mono: 'Share Tech Mono', monospace;
+    --display: 'Rajdhani', sans-serif;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100vh; background:var(--bg); overflow:hidden; color:var(--green); font-family:var(--mono); }
+
+  #rain { position:fixed; inset:0; z-index:0; opacity:0.3; }
+  body::after {
+    content:''; position:fixed; inset:0; z-index:1; pointer-events:none;
+    background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 6px);
+  }
+
+  #app { position:relative; z-index:2; height:100vh; display:flex; flex-direction:column; padding:24px 40px; }
+
+  /* Header */
+  .top {
+    display:flex; justify-content:space-between; align-items:center;
+    border-bottom:1px solid rgba(0,255,65,0.2); padding-bottom:20px; margin-bottom:24px;
+  }
+  .top h1 {
+    font-family:var(--display); font-size:42px; font-weight:900;
+    letter-spacing:0.12em; text-transform:uppercase;
+    text-shadow:0 0 30px rgba(0,255,65,0.5);
+  }
+  .top .meta { text-align:right; font-size:13px; color:var(--green-dim); line-height:2; }
+  .top .clock { font-size:28px; font-family:var(--display); font-weight:700; color:var(--green); }
+
+  /* Table */
+  .board { flex:1; display:flex; flex-direction:column; gap:8px; overflow:hidden; }
+
+  .row {
+    display:grid;
+    grid-template-columns: 60px 1fr 160px 120px 100px;
+    align-items:center;
+    padding:14px 20px;
+    border:1px solid rgba(0,255,65,0.12);
+    border-radius:2px;
+    background:rgba(0,255,65,0.03);
+    transition: all 0.4s ease;
+    animation: slideIn 0.4s ease;
+  }
+  .row.header {
+    font-size:11px; letter-spacing:0.25em; color:var(--green-dim);
+    border-color:transparent; background:transparent;
+    padding-bottom:4px; margin-bottom:4px;
+  }
+  .row.finished {
+    border-color:rgba(0,255,65,0.5);
+    background:rgba(0,255,65,0.07);
+    box-shadow:0 0 20px rgba(0,255,65,0.1);
+  }
+  .row.first {
+    border-color:var(--green);
+    background:rgba(0,255,65,0.12);
+    box-shadow:0 0 30px rgba(0,255,65,0.15);
+  }
+
+  .rank {
+    font-family:var(--display); font-size:28px; font-weight:900;
+    color:rgba(0,255,65,0.3);
+  }
+  .rank.r1 { color:var(--green); text-shadow:0 0 12px var(--green); }
+  .rank.r2 { color:var(--green-dim); }
+  .rank.r3 { color:rgba(0,255,65,0.5); }
+
+  .team-name {
+    font-family:var(--display); font-size:24px; font-weight:700;
+    letter-spacing:0.05em; text-transform:uppercase;
+  }
+  .team-name.finished { color:var(--green); }
+
+  /* Layer progress dots */
+  .layer-dots { display:flex; gap:8px; align-items:center; }
+  .dot {
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid rgba(0,255,65,0.2);
+    background:transparent; transition:all 0.4s;
+    position:relative;
+  }
+  .dot.done { background:var(--green); border-color:var(--green); box-shadow:0 0 8px var(--green); }
+  .dot.active { border-color:var(--amber); animation:pulse 1s infinite; }
+  .dot-label { font-size:10px; color:var(--green-dim); margin-left:4px; }
+
+  .time-col { font-size:18px; font-family:var(--display); font-weight:600; }
+  .time-col.done { color:var(--green); }
+  .strikes-col { font-size:14px; color:rgba(0,255,65,0.4); }
+
+  /* Empty state */
+  .empty { flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+  .empty h2 { font-family:var(--display); font-size:32px; font-weight:700; color:rgba(0,255,65,0.3); }
+  .empty p { font-size:13px; color:rgba(0,255,65,0.2); }
+
+  /* Bottom ticker */
+  .ticker {
+    margin-top:16px; padding-top:12px;
+    border-top:1px solid rgba(0,255,65,0.1);
+    font-size:12px; color:rgba(0,255,65,0.3);
+    letter-spacing:0.2em; overflow:hidden; white-space:nowrap;
+  }
+
+  @keyframes pulse { 0%,100%{box-shadow:0 0 4px var(--amber)} 50%{box-shadow:0 0 14px var(--amber)} }
+  @keyframes slideIn { from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:none} }
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div id="app">
+  <div class="top">
+    <div>
+      <h1>🟢 ESCAPE THE MATRIX</h1>
+      <div style="font-size:13px;color:var(--green-dim);letter-spacing:0.2em;margin-top:4px;">// LIVE OPERATOR STATUS //</div>
+    </div>
+    <div class="meta">
+      <div class="clock" id="clock">00:00:00</div>
+      <div>AUTO-REFRESH EVERY 5s</div>
+    </div>
+  </div>
+  <div class="board" id="board">
+    <div class="empty"><h2>AWAITING OPERATORS...</h2><p>Teams will appear here once they begin.</p></div>
+  </div>
+  <div class="ticker" id="ticker">SYSTEM ONLINE &nbsp;·&nbsp; ALL CHANNELS ACTIVE &nbsp;·&nbsp; THE MATRIX AWAITS &nbsp;·&nbsp; ESCAPE IF YOU CAN &nbsp;·&nbsp; &nbsp;</div>
+</div>
+<script>
+// Rain
+(function(){
+  const c=document.getElementById('rain'),ctx=c.getContext('2d');
+  const chars='アイウエオカキクケコ0123456789ABCDEF';
+  let drops=[];
+  function resize(){c.width=innerWidth;c.height=innerHeight;drops=Array.from({length:Math.floor(innerWidth/18)},()=>Math.random()*-80);}
+  resize();window.addEventListener('resize',resize);
+  setInterval(()=>{ctx.fillStyle='rgba(2,13,6,0.06)';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#00ff41';ctx.font='14px Share Tech Mono';drops.forEach((y,i)=>{const ch=chars[Math.floor(Math.random()*chars.length)];ctx.globalAlpha=Math.random()*0.7+0.1;ctx.fillText(ch,i*18,y*16);ctx.globalAlpha=1;if(y*16>c.height&&Math.random()>0.975)drops[i]=0;else drops[i]++;});},60);
+})();
+
+// Clock
+let startTs = Date.now();
+setInterval(()=>{
+  const s=Math.floor((Date.now()-startTs)/1000);
+  const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  document.getElementById('clock').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+},1000);
+
+function fmt(ms){const s=Math.floor(ms/1000),m=Math.floor(s/60),r=s%60;return`${String(m).padStart(2,'0')}:${String(r).padStart(2,'0')}`;}
+
+function renderBoard(teams) {
+  const board = document.getElementById('board');
+  if (!teams.length) {
+    board.innerHTML = `<div class="empty"><h2>AWAITING OPERATORS...</h2><p>Teams will appear here once they begin.</p></div>`;
+    return;
+  }
+
+  const maxRows = Math.min(teams.length, 12);
+  const visible = teams.slice(0, maxRows);
+
+  let html = `<div class="row header">
+    <div>RANK</div><div>OPERATOR</div><div>PROGRESS</div><div>TIME</div><div>PENALTIES</div>
+  </div>`;
+
+  visible.forEach((t, i) => {
+    const rank = i + 1;
+    const rankClass = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : '';
+    const rowClass = t.finished ? (rank===1?'first':'finished') : '';
+    const currentLayer = Math.min(t.layer - 1, 4); // layers completed
+
+    const dots = [1,2,3,4].map(l => {
+      if (l < t.layer) return `<div class="dot done" title="Layer ${l}"></div>`;
+      if (l === t.layer && !t.finished) return `<div class="dot active"></div>`;
+      return `<div class="dot"></div>`;
+    }).join('');
+
+    html += `<div class="row ${rowClass}">
+      <div class="rank ${rankClass}">${rank}</div>
+      <div class="team-name ${t.finished?'finished':''}">${t.name}${t.finished?' ✓':''}</div>
+      <div class="layer-dots">${dots}<span class="dot-label">${t.finished?'DONE':t.layer<=4?`L${t.layer}`:''}</span></div>
+      <div class="time-col ${t.finished?'done':''}">${fmt(t.elapsed)}</div>
+      <div class="strikes-col">${t.totalStrikes} ×</div>
+    </div>`;
+  });
+
+  board.innerHTML = html;
+}
+
+async function refresh() {
+  try {
+    const r = await fetch('/api/teams');
+    const d = await r.json();
+    if (d.ok) renderBoard(d.teams);
+  } catch {}
+}
+
+refresh();
+setInterval(refresh, 5000);
+
+// Ticker scroll
+let tickerPos = 0;
+const ticker = document.getElementById('ticker');
+setInterval(()=>{
+  tickerPos--;
+  ticker.style.transform=`translateX(${tickerPos}px)`;
+  if(tickerPos < -ticker.scrollWidth/2) tickerPos=0;
+},30);
+</script>
+</body>
+</html>

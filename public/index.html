@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ESCAPE THE MATRIX</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:#00ff41;--dim:#00b32c;--bg:#020d06;
+  --panel:rgba(0,18,7,0.97);--border:rgba(0,255,65,0.2);
+  --red:#ff2244;--amber:#ffb300;
+  --mono:'Share Tech Mono',monospace;--display:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--green);font-family:var(--mono);}
+#rain{position:fixed;inset:0;z-index:0;opacity:0.25;pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 6px);}
+#app{position:relative;z-index:2;max-width:660px;margin:0 auto;padding:32px 20px;display:flex;flex-direction:column;gap:20px;}
+
+.header{text-align:center;border-bottom:1px solid var(--border);padding-bottom:18px;}
+.header h1{font-family:var(--display);font-size:30px;font-weight:900;letter-spacing:0.12em;text-shadow:0 0 24px rgba(0,255,65,0.5);}
+.header .sub{font-size:11px;color:var(--dim);letter-spacing:0.3em;margin-top:6px;}
+.team-badge{margin-top:10px;font-size:13px;color:var(--dim);display:none;}
+.team-badge span{color:var(--green);font-weight:bold;}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:26px;}
+.card-title{font-family:var(--display);font-size:17px;font-weight:700;letter-spacing:0.1em;margin-bottom:14px;color:var(--green);}
+.card-title .tag{font-size:11px;color:var(--dim);margin-left:8px;font-family:var(--mono);}
+
+input[type=text]{width:100%;background:rgba(0,255,65,0.04);border:1px solid var(--border);color:var(--green);font-family:var(--mono);font-size:16px;padding:12px 14px;border-radius:2px;outline:none;text-transform:uppercase;letter-spacing:0.1em;transition:border-color 0.2s;}
+input[type=text]:focus{border-color:var(--green);box-shadow:0 0 12px rgba(0,255,65,0.15);}
+input[type=text]::placeholder{color:rgba(0,255,65,0.25);text-transform:none;letter-spacing:normal;}
+input[type=text]:disabled{opacity:0.4;}
+
+.btn{display:block;width:100%;padding:12px;background:transparent;border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:14px;letter-spacing:0.15em;cursor:pointer;border-radius:2px;transition:all 0.2s;text-transform:uppercase;margin-top:10px;}
+.btn:hover{background:rgba(0,255,65,0.1);box-shadow:0 0 16px rgba(0,255,65,0.2);}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+
+.msg{padding:10px 14px;border-radius:2px;font-size:12px;margin-top:10px;display:none;line-height:1.6;}
+.msg.show{display:block;}
+.msg-err{background:rgba(255,34,68,0.1);border:1px solid rgba(255,34,68,0.3);color:var(--red);}
+.msg-ok{background:rgba(0,255,65,0.1);border:1px solid rgba(0,255,65,0.3);color:var(--green);}
+.msg-warn{background:rgba(255,179,0,0.1);border:1px solid rgba(255,179,0,0.3);color:var(--amber);}
+
+/* Waiting */
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.blink{animation:blink 1.2s step-end infinite;}
+.glitch{font-family:var(--display);font-size:20px;font-weight:700;letter-spacing:0.05em;}
+.wait-sub{font-size:12px;color:var(--dim);letter-spacing:0.15em;margin-top:14px;line-height:2.2;}
+
+/* Audio */
+audio{width:100%;margin:14px 0;filter:invert(1) sepia(1) saturate(5) hue-rotate(90deg);}
+
+/* Penalty */
+#penalty-block{text-align:center;padding:16px 0;display:none;}
+#penalty-block.show{display:block;}
+.pen-num{font-family:var(--display);font-size:60px;font-weight:900;color:var(--red);text-shadow:0 0 20px rgba(255,34,68,0.5);}
+.pen-label{font-size:11px;color:rgba(255,34,68,0.6);letter-spacing:0.3em;margin-top:2px;}
+
+/* Wordle */
+#wordle-grid{display:grid;grid-template-rows:repeat(6,1fr);gap:5px;margin:16px 0;}
+.wrow{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;}
+.wcell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-size:22px;font-weight:900;border:2px solid rgba(0,255,65,0.2);border-radius:2px;transition:all 0.25s;}
+.wcell.correct{background:#538d4e;border-color:#538d4e;color:#fff;box-shadow:0 0 8px rgba(83,141,78,0.5);}
+.wcell.present{background:#b59f3b;border-color:#b59f3b;color:#fff;}
+.wcell.absent{background:#2a2a2a;border-color:#3a3a3c;color:#666;}
+.wcell.active{border-color:var(--green);}
+
+.wrow-input{display:flex;gap:8px;margin-top:4px;}
+.wrow-input input{flex:1;text-align:center;letter-spacing:0.3em;font-size:18px;}
+.wrow-input .btn{width:auto;padding:12px 18px;margin-top:0;}
+.guesses-left{text-align:center;font-size:11px;color:var(--dim);letter-spacing:0.2em;margin-bottom:6px;}
+
+.keyboard{display:flex;flex-direction:column;gap:5px;margin-top:14px;}
+.kb-row{display:flex;justify-content:center;gap:4px;}
+.kb-key{min-width:34px;height:42px;padding:0 6px;background:rgba(0,255,65,0.05);border:1px solid rgba(0,255,65,0.15);color:var(--green);font-family:var(--mono);font-size:12px;cursor:pointer;border-radius:2px;transition:all 0.15s;display:flex;align-items:center;justify-content:center;}
+.kb-key:hover{background:rgba(0,255,65,0.12);}
+.kb-key.correct{background:#538d4e;border-color:#538d4e;color:#fff;}
+.kb-key.present{background:#b59f3b;border-color:#b59f3b;color:#fff;}
+.kb-key.absent{background:#1a1a1a;border-color:#333;color:#444;}
+.kb-key.wide{min-width:52px;font-size:10px;}
+
+/* Done */
+#phase-done{text-align:center;}
+.reveal-box{background:rgba(0,255,65,0.06);border:1px solid var(--green);border-radius:2px;padding:30px;margin:16px 0;box-shadow:0 0 40px rgba(0,255,65,0.1);}
+.reveal-big{font-family:var(--display);font-size:44px;font-weight:900;color:var(--green);text-shadow:0 0 20px rgba(0,255,65,0.6);}
+.reveal-sub{font-family:var(--display);font-size:28px;font-weight:700;color:var(--dim);margin-top:4px;}
+.reveal-note{font-size:13px;color:var(--dim);margin-top:18px;letter-spacing:0.1em;line-height:1.8;}
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div id="app">
+
+  <div class="header">
+    <h1>⬡ ESCAPE THE MATRIX</h1>
+    <div class="sub">// OPERATOR TERMINAL — ROUND 1 //</div>
+    <div class="team-badge" id="team-badge">OPERATOR: <span id="team-name-disp">—</span></div>
+  </div>
+
+  <!-- REGISTER -->
+  <div id="phase-register" class="card">
+    <div class="card-title">IDENTIFY YOURSELF <span class="tag">// INIT</span></div>
+    <p style="font-size:12px;color:var(--dim);margin-bottom:14px;line-height:1.8;">Enter your team name. All members must use the same name.</p>
+    <input type="text" id="reg-input" placeholder="Team name..." maxlength="30"/>
+    <button class="btn" onclick="register()">CONNECT TO MATRIX</button>
+    <div class="msg msg-err" id="reg-err"></div>
+  </div>
+
+  <!-- WAITING -->
+  <div id="phase-waiting" class="card" style="display:none">
+    <div class="card-title">STANDBY <span class="tag">// SIGNAL INCOMING</span></div>
+    <div style="text-align:center;padding:16px 0;">
+      <div class="glitch">AWAITING OPERATOR SIGNAL<span class="blink">_</span></div>
+      <div class="wait-sub">Keep this window open.<br/>Volume on.<br/>Do not refresh.</div>
+    </div>
+  </div>
+
+  <!-- AUDIO -->
+  <div id="phase-audio" class="card" style="display:none">
+    <div class="card-title">INTERCEPTED SIGNAL <span class="tag">// ROUND 1</span></div>
+    <p style="font-size:12px;color:var(--dim);line-height:1.8;">A message from within the system. Listen carefully. <span style="color:var(--amber);">Play as many times as needed.</span></p>
+    <audio id="audio-player" controls><source id="audio-src" src="" type="audio/mpeg"/>No audio support.</audio>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:12px;">Decode the message and enter your answer:</p>
+    <input type="text" id="audio-answer" placeholder="Your answer..." maxlength="50"/>
+    <div id="penalty-block">
+      <div class="pen-num" id="pen-timer">30</div>
+      <div class="pen-label">SECOND PENALTY — WAIT</div>
+    </div>
+    <button class="btn" id="audio-btn" onclick="submitAudio()">SUBMIT ANSWER</button>
+    <div class="msg msg-err" id="audio-err"></div>
+    <div class="msg msg-ok"  id="audio-ok"></div>
+    <div class="msg msg-warn" id="audio-hint"></div>
+  </div>
+
+  <!-- WORDLE -->
+  <div id="phase-wordle" class="card" style="display:none">
+    <div class="card-title">THE WORDLE PROTOCOL <span class="tag">// ROUND 1B</span></div>
+    <p style="font-size:11px;color:var(--dim);line-height:1.8;">
+      5-letter Matrix keyword · 6 attempts<br>
+      <span style="color:#538d4e">■ Green</span> = right spot &nbsp;
+      <span style="color:#b59f3b">■ Yellow</span> = wrong spot &nbsp;
+      <span style="color:#555">■ Grey</span> = not in word
+    </p>
+    <div class="guesses-left" id="guesses-left">6 GUESSES REMAINING</div>
+    <div id="wordle-grid"></div>
+    <div class="wrow-input">
+      <input type="text" id="wordle-input" maxlength="5" placeholder="GUESS" oninput="syncRow()" onkeydown="if(event.key==='Enter')submitWordle()"/>
+      <button class="btn" style="width:auto;padding:12px 18px;margin-top:0" onclick="submitWordle()">ENTER</button>
+    </div>
+    <div class="keyboard" id="keyboard"></div>
+    <div class="msg msg-err"  id="wordle-err"></div>
+    <div class="msg msg-warn" id="wordle-warn"></div>
+  </div>
+
+  <!-- DONE -->
+  <div id="phase-done" class="card" style="display:none">
+    <div class="card-title" style="text-align:center;font-size:20px;">🟢 ACCESS GRANTED</div>
+    <div class="reveal-box" id="reveal-box"></div>
+    <p class="reveal-note">Memorise this. Do not photograph it.<br>Proceed immediately.</p>
+  </div>
+
+</div>
+<script>
+// Rain
+(function(){const c=document.getElementById('rain'),ctx=c.getContext('2d');const chars='アイウエオ0123456789ABCDEF';let d=[];function r(){c.width=innerWidth;c.height=innerHeight;d=Array.from({length:Math.floor(innerWidth/18)},()=>Math.random()*-80);}r();addEventListener('resize',r);setInterval(()=>{ctx.fillStyle='rgba(2,13,6,0.055)';ctx.fillRect(0,0,c.width,c.height);ctx.fillStyle='#00ff41';ctx.font='13px Share Tech Mono';d.forEach((y,i)=>{const ch=chars[Math.floor(Math.random()*chars.length)];ctx.globalAlpha=Math.random()*0.6+0.1;ctx.fillText(ch,i*18,y*16);ctx.globalAlpha=1;if(y*16>c.height&&Math.random()>0.975)d[i]=0;else d[i]++;});},60);})();
+
+let teamName = localStorage.getItem('matrixTeam')||null;
+let teamGroup = parseInt(localStorage.getItem('matrixGroup') || '0', 10) || 0;
+let gamePhase = 'waiting';
+let penaltyIv = null;
+let audioHintTimers = [];
+let audioVisibleHints = [];
+let wGuesses = [];
+let keyState = {};
+
+const KB = [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['ENTER','Z','X','C','V','B','N','M','⌫']];
+
+function showPhase(p){['register','waiting','audio','wordle','done'].forEach(x=>document.getElementById('phase-'+x).style.display=x===p?'':'none');}
+function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
+function clearMsg(id){const e=document.getElementById(id);e.textContent='';e.classList.remove('show');}
+function setTeam(n,g){teamName=n;localStorage.setItem('matrixTeam',n);if(typeof g==='number'){teamGroup=g;localStorage.setItem('matrixGroup',String(g));}const b=document.getElementById('team-badge');b.style.display='';document.getElementById('team-name-disp').textContent=n;}
+function clearAudioHint(){audioHintTimers.forEach(clearTimeout);audioHintTimers=[];audioVisibleHints=[];clearMsg('audio-hint');}
+function renderAudioHints(){if(!audioVisibleHints.length){clearMsg('audio-hint');return;}showMsg('audio-hint',audioVisibleHints.map(h=>`HINT ${h.number}: ${h.text}`).join(' | '));}
+function applyAudioHint(hintState){
+  clearAudioHint();
+  if(!hintState)return;
+  audioVisibleHints=Array.isArray(hintState.unlockedHints)?[...hintState.unlockedHints]:[];
+  audioVisibleHints.sort((a,b)=>a.number-b.number);
+  renderAudioHints();
+  const pendingHints=Array.isArray(hintState.pendingHints)?hintState.pendingHints:[];
+  pendingHints.forEach(hint=>{
+    if(!hint||!hint.text||hint.remainingSeconds<=0)return;
+    const timerId=setTimeout(()=>{
+      if(document.getElementById('phase-audio').style.display==='none')return;
+      audioVisibleHints.push({number:hint.number,text:hint.text});
+      audioVisibleHints.sort((a,b)=>a.number-b.number);
+      renderAudioHints();
+    },hint.remainingSeconds*1000);
+    audioHintTimers.push(timerId);
+  });
+}
+
+async function register(){
+  const v=document.getElementById('reg-input').value.trim().toUpperCase();
+  if(v.length<2){showMsg('reg-err','Too short');return;}
+  const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({teamName:v})}).then(x=>x.json());
+  if(!r.ok){showMsg('reg-err',r.error);return;}
+  setTeam(r.team.name,r.team.group||0);
+  gamePhase=r.gamePhase;
+  applyPhase(r.team.round1Phase,{round1AudioHint:r.round1AudioHint});
+}
+
+function applyPhase(p,extra={}){
+  clearAudioHint();
+  if(p==='done'){showPhase('done');if(extra.reveal)renderReveal(extra.reveal);else fetchState();}
+  else if(p==='wordle'){showPhase('wordle');wGuesses=extra.wordleGuesses||[];renderGrid();buildKb();}
+  else if(p==='audio'||(p==='waiting'&&gamePhase==='audio')){showPhase('audio');startAudio();applyAudioHint(extra.round1AudioHint);}
+  else showPhase('waiting');
+}
+
+// SSE
+function connectSSE(){
+  const es=new EventSource('/api/events');
+  es.addEventListener('phase',e=>{
+    const d=JSON.parse(e.data);gamePhase=d.phase;
+    if(d.phase==='audio'&&teamName&&document.getElementById('phase-waiting').style.display!=='none'){
+      fetchState();
+    }
+  });
+  es.onerror=()=>setTimeout(connectSSE,3000);
+}
+
+function startAudio(u){
+  const p=document.getElementById('audio-player'),s=document.getElementById('audio-src');
+  const src=u||'/audio/clue.mp3';
+  if(!s.src.endsWith(src)){s.src=src;p.load();}
+  p.play().catch(()=>{});
+}
+
+async function submitAudio(){
+  const ans=document.getElementById('audio-answer').value.trim();
+  if(!ans)return;
+  clearMsg('audio-err');clearMsg('audio-ok');
+  const r=await fetch('/api/submit-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({teamName,answer:ans})}).then(x=>x.json());
+  if(r.penalized){startPenalty(r.remaining);return;}
+  if(r.correct){showMsg('audio-ok','CORRECT - loading next protocol...');setTimeout(()=>{wGuesses=[];applyPhase('wordle',{wordleGuesses:[]});},800);return;}
+  if(r.correct){showMsg('audio-ok','✓ CORRECT — loading next protocol...');setTimeout(()=>{wGuesses=[];showPhase('wordle');renderGrid();buildKb();},800);}
+  else{showMsg('audio-err',`✗ WRONG. ${r.penaltySeconds}s penalty.`);startPenalty(r.penaltySeconds);}
+}
+
+function startPenalty(sec){
+  const blk=document.getElementById('penalty-block'),tmr=document.getElementById('pen-timer');
+  const btn=document.getElementById('audio-btn'),inp=document.getElementById('audio-answer');
+  blk.classList.add('show');btn.disabled=true;inp.disabled=true;
+  let r=sec;tmr.textContent=r;
+  if(penaltyIv)clearInterval(penaltyIv);
+  penaltyIv=setInterval(()=>{r--;tmr.textContent=r;if(r<=0){clearInterval(penaltyIv);blk.classList.remove('show');btn.disabled=false;inp.disabled=false;}},1000);
+}
+
+// Wordle
+function renderGrid(){
+  const g=document.getElementById('wordle-grid');g.innerHTML='';
+  for(let r=0;r<6;r++){
+    const row=document.createElement('div');row.className='wrow';row.id='wr'+r;
+    for(let c=0;c<5;c++){
+      const cell=document.createElement('div');cell.className='wcell';cell.id=`wc${r}${c}`;
+      if(wGuesses[r]){const{letter,result}=wGuesses[r].scored[c];cell.textContent=letter;cell.classList.add(result);}
+      row.appendChild(cell);
+    }
+    g.appendChild(row);
+  }
+  document.getElementById('guesses-left').textContent=`${6-wGuesses.length} GUESS${6-wGuesses.length!==1?'ES':''} REMAINING`;
+}
+
+function syncRow(){
+  const v=document.getElementById('wordle-input').value.toUpperCase();
+  const r=wGuesses.length;if(r>=6)return;
+  for(let c=0;c<5;c++){const cell=document.getElementById(`wc${r}${c}`);if(!cell)return;cell.textContent=v[c]||'';cell.className='wcell'+(v[c]?' active':'');}
+}
+
+async function submitWordle(){
+  const g=document.getElementById('wordle-input').value.trim().toUpperCase();
+  clearMsg('wordle-err');clearMsg('wordle-warn');
+  if(g.length!==5){showMsg('wordle-err','5 letters required');return;}
+  const r=await fetch('/api/submit-wordle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({teamName,guess:g})}).then(x=>x.json());
+  if(!r.ok){showMsg('wordle-err',r.error);return;}
+  wGuesses.push({guess:g,scored:r.scored});
+  renderGrid();
+  r.scored.forEach(({letter,result})=>{const p=keyState[letter];if(result==='correct')keyState[letter]='correct';else if(result==='present'&&p!=='correct')keyState[letter]='present';else if(!p)keyState[letter]='absent';});
+  buildKb();
+  document.getElementById('wordle-input').value='';
+  if(r.won){setTimeout(()=>{showPhase('done');renderReveal(r.reveal);},600);}
+  else if(r.lost){showMsg('wordle-warn',r.message);setTimeout(()=>{wGuesses=[];keyState={};renderGrid();buildKb();},1500);}
+}
+
+function buildKb(){
+  const kb=document.getElementById('keyboard');kb.innerHTML='';
+  KB.forEach(row=>{const d=document.createElement('div');d.className='kb-row';row.forEach(k=>{const b=document.createElement('button');b.className='kb-key'+(k.length>1?' wide':'');if(keyState[k])b.classList.add(keyState[k]);b.textContent=k;b.onclick=()=>{const inp=document.getElementById('wordle-input');if(k==='⌫')inp.value=inp.value.slice(0,-1);else if(k==='ENTER')submitWordle();else if(inp.value.length<5)inp.value+=k;syncRow();};d.appendChild(b);});kb.appendChild(d);});
+}
+
+function renderReveal(rev){
+  document.getElementById('reveal-box').innerHTML=`<div class="reveal-big">${rev.lab}</div><div class="reveal-sub">${rev.pc}</div><div style="margin-top:16px;font-size:12px;color:var(--dim);letter-spacing:0.12em;">${rev.instruction}</div>`;
+}
+
+async function fetchState(){
+  if(!teamName)return;
+  const r=await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`).then(x=>x.json());
+  if(!r.ok)return;
+  if(typeof r.group==='number'){teamGroup=r.group;localStorage.setItem('matrixGroup',String(r.group));}
+  gamePhase=r.gamePhase;
+  applyPhase(r.round1Phase,{wordleGuesses:r.wordleGuesses,reveal:r.reveal,round1AudioHint:r.round1AudioHint});
+  if(r.penaltyRemaining>0&&r.round1Phase==='audio')startPenalty(r.penaltyRemaining);
+}
+
+// Init
+connectSSE();
+if(teamName){document.getElementById('team-badge').style.display='';document.getElementById('team-name-disp').textContent=teamName;fetchState();}
+else showPhase('register');
+document.getElementById('reg-input').addEventListener('keydown',e=>{if(e.key==='Enter')register();});
+</script>
+</body>
+</html>

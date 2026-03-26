@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ESCAPE THE MATRIX — ROUND 2</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green:#00ff41;--dim:#00b32c;--bg:#020d06;
+  --panel:rgba(0,18,7,0.97);--border:rgba(0,255,65,0.2);
+  --red:#ff2244;--amber:#ffb300;--blue:#4488ff;
+  --mono:'Share Tech Mono',monospace;--display:'Rajdhani',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;min-height:100vh;background:var(--bg);color:var(--green);font-family:var(--mono);}
+#rain{position:fixed;inset:0;z-index:0;opacity:0.2;pointer-events:none;}
+body::after{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.04) 3px,rgba(0,0,0,0.04) 6px);}
+#app{position:relative;z-index:2;max-width:800px;margin:0 auto;padding:32px 20px;display:flex;flex-direction:column;gap:20px;}
+
+/* ── shared ── */
+.card{background:var(--panel);border:1px solid var(--border);border-radius:2px;padding:28px;}
+.card-title{font-family:var(--display);font-size:18px;font-weight:700;letter-spacing:0.1em;margin-bottom:16px;}
+.btn{display:inline-block;padding:11px 28px;background:transparent;border:1px solid var(--green);
+  color:var(--green);font-family:var(--mono);font-size:13px;letter-spacing:0.15em;cursor:pointer;
+  border-radius:2px;transition:all 0.2s;text-transform:uppercase;}
+.btn:hover{background:rgba(0,255,65,0.1);box-shadow:0 0 16px rgba(0,255,65,0.2);}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+.btn-red{border-color:var(--red);color:var(--red);}
+.btn-red:hover{background:rgba(255,34,68,0.08);}
+input[type=text]{width:100%;background:rgba(0,255,65,0.04);border:1px solid var(--border);
+  color:var(--green);font-family:var(--mono);font-size:15px;padding:12px 14px;border-radius:2px;
+  outline:none;letter-spacing:0.1em;transition:border-color 0.2s;}
+input[type=text]:focus{border-color:var(--green);box-shadow:0 0 12px rgba(0,255,65,0.15);}
+input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
+.msg{padding:10px 14px;border-radius:2px;font-size:12px;margin-top:12px;display:none;line-height:1.6;}
+.msg.show{display:block;}
+.msg-err{background:rgba(255,34,68,0.1);border:1px solid rgba(255,34,68,0.3);color:var(--red);}
+.msg-ok{background:rgba(0,255,65,0.1);border:1px solid rgba(0,255,65,0.3);color:var(--green);}
+.msg-warn{background:rgba(255,179,0,0.1);border:1px solid rgba(255,179,0,0.3);color:var(--amber);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.blink{animation:blink 1.2s step-end infinite;}
+
+/* ── PHASE: LAB REVEAL ── */
+#phase-lab{text-align:center;}
+.lab-box{background:rgba(0,255,65,0.06);border:1px solid var(--green);border-radius:2px;
+  padding:36px;margin:10px 0;box-shadow:0 0 40px rgba(0,255,65,0.1);}
+.lab-big{font-family:var(--display);font-size:52px;font-weight:900;color:var(--green);
+  text-shadow:0 0 24px rgba(0,255,65,0.6);letter-spacing:0.05em;}
+.lab-pc{font-family:var(--display);font-size:32px;font-weight:700;color:var(--dim);margin-top:6px;}
+.lab-instr{font-size:12px;color:var(--dim);margin-top:18px;letter-spacing:0.12em;line-height:1.9;}
+.countdown-ring{margin:20px auto 0;width:90px;height:90px;position:relative;}
+.countdown-ring svg{transform:rotate(-90deg);}
+.countdown-ring circle{fill:none;stroke:rgba(0,255,65,0.15);stroke-width:4;}
+.countdown-ring .progress{stroke:var(--green);stroke-width:4;stroke-linecap:round;
+  stroke-dasharray:251.2;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear;}
+.countdown-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--display);font-size:28px;font-weight:900;color:var(--green);}
+
+/* ── PHASE: INTRO ── */
+#phase-intro .lore{font-size:13px;color:var(--dim);line-height:2.2;margin-bottom:20px;letter-spacing:0.05em;}
+#phase-intro .lore span{color:var(--green);}
+.intro-rule{border:1px solid var(--border);padding:14px 18px;border-radius:2px;
+  background:rgba(0,255,65,0.03);margin-bottom:20px;font-size:12px;line-height:1.9;color:var(--dim);}
+.intro-rule strong{color:var(--green);}
+
+/* ── PHASE: ARTICLES ── */
+
+.article-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.article-nav .nav-label{font-family:var(--display);font-size:15px;font-weight:700;letter-spacing:0.1em;}
+.article-dots{display:flex;gap:8px;}
+.adot{width:10px;height:10px;border-radius:50%;border:1px solid rgba(0,255,65,0.3);
+  background:transparent;cursor:pointer;transition:all 0.2s;}
+.adot.active{background:var(--green);border-color:var(--green);box-shadow:0 0 6px var(--green);}
+.adot.visited{background:rgba(0,255,65,0.3);border-color:var(--dim);}
+
+/* Wikipedia article styling inside the card */
+.wiki-article{font-family:Georgia,'Times New Roman',serif;color:#e8f5e8;font-size:13px;}
+.wiki-top-bar{border-bottom:1px solid rgba(0,255,65,0.2);padding-bottom:6px;margin-bottom:12px;
+  display:flex;justify-content:space-between;font-family:sans-serif;font-size:10px;color:rgba(0,255,65,0.4);}
+.wiki-title{font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:0.04em;
+  color:var(--green);border-bottom:1px solid rgba(0,255,65,0.2);padding-bottom:6px;margin-bottom:4px;}
+.wiki-subtitle{font-size:10px;color:rgba(0,255,65,0.4);font-style:italic;margin-bottom:14px;font-family:sans-serif;}
+.wiki-infobox{float:right;clear:right;margin:0 0 14px 18px;padding:8px 10px;
+  border:1px solid rgba(0,255,65,0.2);background:rgba(0,255,65,0.03);
+  font-family:sans-serif;font-size:10px;width:200px;line-height:1.7;color:rgba(0,255,65,0.7);}
+.wiki-infobox-title{background:rgba(0,255,65,0.1);text-align:center;font-weight:bold;
+  font-size:11px;padding:4px;margin:-8px -10px 8px;color:var(--green);}
+.wiki-infobox table{width:100%;border-collapse:collapse;}
+.wiki-infobox td:first-child{color:rgba(0,255,65,0.4);padding-right:6px;vertical-align:top;white-space:nowrap;}
+.wiki-article p{margin-bottom:9px;line-height:1.75;text-align:justify;color:rgba(230,255,230,0.85);}
+.wiki-h2{font-family:var(--display);font-size:17px;font-weight:700;
+  border-bottom:1px solid rgba(0,255,65,0.2);margin:16px 0 8px;padding-bottom:3px;color:var(--green);}
+.wiki-h3{font-family:sans-serif;font-size:12px;font-weight:bold;margin:10px 0 5px;color:rgba(0,255,65,0.8);}
+.wiki-article sup{font-size:9px;color:rgba(0,100,255,0.7);}
+/* THE answer formatting — underline only */
+.wiki-article .ans{text-decoration:underline;text-decoration-color:var(--green);}
+/* System notice */
+.sys-notice{margin-top:18px;border:1px solid rgba(0,255,65,0.4);clear:both;}
+.sys-notice-hdr{background:rgba(0,255,65,0.15);color:var(--green);padding:5px 10px;
+  font-family:var(--mono);font-size:10px;letter-spacing:0.15em;font-weight:bold;}
+.sys-notice-body{padding:10px 12px;font-family:var(--mono);font-size:10.5px;
+  line-height:1.85;color:rgba(0,255,65,0.7);}
+.sys-notice-body strong{color:var(--green);}
+.wiki-cats{margin-top:14px;padding-top:6px;border-top:1px solid rgba(0,255,65,0.1);
+  font-family:sans-serif;font-size:10px;color:rgba(0,100,255,0.5);clear:both;}
+.wiki-refs{font-family:sans-serif;font-size:10px;color:rgba(0,255,65,0.4);
+  margin-top:10px;column-count:2;column-gap:16px;}
+.wiki-refs p{margin-bottom:3px;}
+.clearfix::after{content:'';display:block;clear:both;}
+
+/* nav buttons row */
+.article-btn-row{display:flex;justify-content:space-between;align-items:center;margin-top:16px;}
+.article-btn-row .center-label{font-size:11px;color:var(--dim);letter-spacing:0.15em;}
+
+/* ── PHASE: ANSWER ── */
+#phase-answer .attempts-row{display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:14px;font-size:11px;color:var(--dim);}
+#phase-answer .attempts-row span{color:var(--amber);}
+.hint-box{background:rgba(255,179,0,0.07);border:1px solid rgba(255,179,0,0.3);
+  border-radius:2px;padding:12px 16px;margin-bottom:14px;display:none;
+  font-size:12px;color:var(--amber);line-height:1.8;}
+.hint-box.show{display:block;}
+.answer-sub{font-size:11px;color:var(--dim);margin-bottom:14px;line-height:1.9;}
+.answer-sub span{color:var(--green);}
+#pen-block{text-align:center;padding:14px 0;display:none;}
+#pen-block.show{display:block;}
+.pen-num{font-family:var(--display);font-size:56px;font-weight:900;color:var(--red);
+  text-shadow:0 0 20px rgba(255,34,68,0.4);}
+.pen-label{font-size:10px;color:rgba(255,34,68,0.6);letter-spacing:0.3em;margin-top:2px;}
+
+/* ── PHASE: DONE ── */
+#phase-done{text-align:center;}
+.done-box{background:rgba(0,255,65,0.06);border:1px solid var(--green);border-radius:2px;
+  padding:32px;margin:12px 0;box-shadow:0 0 40px rgba(0,255,65,0.12);}
+.done-big{font-family:var(--display);font-size:42px;font-weight:900;color:var(--green);
+  text-shadow:0 0 20px rgba(0,255,65,0.5);}
+.done-sub{font-size:12px;color:var(--dim);margin-top:16px;letter-spacing:0.1em;line-height:2;}
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div id="app">
+
+  <div class="header" style="text-align:center;border-bottom:1px solid var(--border);padding-bottom:16px;">
+    <div style="font-family:var(--display);font-size:28px;font-weight:900;letter-spacing:0.12em;text-shadow:0 0 24px rgba(0,255,65,0.5);">⬡ ESCAPE THE MATRIX</div>
+    <div style="font-size:11px;color:var(--dim);letter-spacing:0.3em;margin-top:6px;">// ROUND 2 — THE SIGNAL //</div>
+    <div style="margin-top:8px;font-size:12px;color:var(--dim);">OPERATOR: <span id="team-name-disp" style="color:var(--green);font-weight:bold;">—</span></div>
+  </div>
+
+  <!-- ── LAB REVEAL ── -->
+  <div id="phase-lab" class="card" style="display:none">
+    <div class="card-title" style="text-align:center;"> ROUND 1 COMPLETE — ACCESS GRANTED</div>
+    <div class="lab-box">
+      <div class="lab-big" id="lab-name">LAB 2</div>
+      <div class="lab-pc" id="lab-pc">PC 07</div>
+      <div class="lab-instr" id="lab-instr">Proceed immediately. Tell no one your path.</div>
+    </div>
+    <div class="countdown-ring">
+      <svg width="90" height="90" viewBox="0 0 90 90">
+        <circle cx="45" cy="45" r="40"/>
+        <circle class="progress" id="ring-progress" cx="45" cy="45" r="40"/>
+      </svg>
+      <div class="countdown-num" id="ring-num">15</div>
+    </div>
+    <p style="text-align:center;font-size:11px;color:var(--dim);margin-top:10px;letter-spacing:0.2em;">
+      MEMORISE THIS — SCREEN CLEARS IN <span id="cd-sec" style="color:var(--amber);">15</span>s
+    </p>
+  </div>
+
+  <!-- ── POSTER INSTRUCTIONS (Group A/B see this first) ── -->
+  <div id="phase-poster-instructions" class="card" style="display:none">
+    <div class="card-title">PHASE 1 — SIGNAL INTERCEPT <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// QR POSTER</span></div>
+    <div class="lore">
+      Your first task is out in the field.<br>
+      A <span>QR poster</span> has been placed somewhere in the room.<br>
+      Find it. Scan it. Solve the cipher.<br>
+      Return here once Phase 1 is complete.
+    </div>
+    <div class="intro-rule">
+      <strong>// INSTRUCTIONS //</strong><br>
+      Locate the QR poster assigned to your group.<br>
+      Scan the QR code with your phone.<br>
+      Solve the Caesar cipher puzzle on that page.<br>
+      Once solved, come back here for <strong>Phase 2</strong>.
+    </div>
+    <div id="poster-done-check" style="margin-top:8px;">
+      <button class="btn" onclick="checkPosterDone()">✓ I HAVE COMPLETED PHASE 1 — CONTINUE</button>
+      <div class="msg msg-err" id="poster-check-err" style="margin-top:10px;"></div>
+    </div>
+  </div>
+
+  <!-- ── ROUND 2 INTRO ── -->
+  <div id="phase-intro" class="card" style="display:none">
+    <div class="card-title">TRANSMISSION INTERCEPTED <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// ROUND 2</span></div>
+    <div class="lore">
+      You have entered the <span>Laboratory</span>.<br>
+      The Machines have been sloppy. Three documents leaked from their archive.<br>
+      One is real. Two are <span>corrupted decoys</span> planted to mislead you.<br>
+      Read all three carefully. Only one tells the truth.<br>
+      Extract the signal. Decode it. Submit it.
+    </div>
+    <div class="intro-rule">
+      <strong>// HOW TO READ //</strong><br>
+      Each document contains <strong>3 underlined words</strong>.<br>
+      Only the real document's underlined words carry the actual signal.<br>
+      The decoys' underlined words are noise — they will lead you nowhere.<br><br>
+      <strong>// THE SIGNAL RULE //</strong><br>
+      All signals passing through corrupted nodes <strong>travel in reverse</strong>.<br>
+      Each extracted word must be reversed before it means anything.<br>
+      Example: <strong>XIRTAM</strong> → reversed → <strong>MATRIX</strong>
+    </div>
+    <button class="btn" onclick="startArticles()">OPEN DOCUMENTS ►</button>
+  </div>
+
+  <!-- ── ARTICLES ── -->
+  <div id="phase-articles" class="card" style="display:none">
+    <div class="article-nav">
+      <div class="nav-label">DOCUMENT <span id="art-num">1</span> / 3</div>
+      <div class="article-dots">
+        <div class="adot active" id="dot-0" onclick="goToArticle(0)" title="Document 1"></div>
+        <div class="adot" id="dot-1" onclick="goToArticle(1)" title="Document 2"></div>
+        <div class="adot" id="dot-2" onclick="goToArticle(2)" title="Document 3"></div>
+      </div>
+    </div>
+
+    <!-- Article content swaps here -->
+    <div id="article-body"></div>
+
+    <div class="article-btn-row">
+      <button class="btn" id="btn-prev" onclick="prevArticle()" style="display:none">◄ PREV</button>
+      <div class="center-label" id="art-status"></div>
+      <button class="btn" id="btn-next" onclick="nextArticle()">NEXT ►</button>
+    </div>
+  </div>
+
+  <!-- ── ANSWER ── -->
+  <div id="phase-answer" class="card" style="display:none">
+    <div class="card-title">SUBMIT SIGNAL <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// DECODE &amp; TRANSMIT</span></div>
+    <div class="attempts-row">
+      <span>ATTEMPTS: <span id="attempt-count">0</span> / ∞</span>
+      <span id="hint-trigger" style="display:none;color:var(--amber);">HINT AVAILABLE ▼</span>
+    </div>
+    <div class="hint-box" id="hint-box">
+      💡 <strong>SIGNAL HINT:</strong> The real document contains exactly 3 <u>underlined words</u>.<br>
+      Those are your signal fragments. Reverse each one. Submit all three separated by spaces.<br>
+      Example format: <strong>WORD1 WORD2 WORD3</strong>
+    </div>
+    <div class="answer-sub">
+      Enter the 3 signal words exactly as they appear in the document (unreversed).<br>
+      Separate with spaces. <span>Remember — all signals travel in reverse.</span>
+    </div>
+    <input type="text" id="answer-input" placeholder="WORD1 WORD2 WORD3" maxlength="40"
+      onkeydown="if(event.key==='Enter')submitAnswer()"/>
+    <div id="pen-block">
+      <div class="pen-num" id="pen-timer">60</div>
+      <div class="pen-label">SECOND PENALTY — WAIT</div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn" onclick="submitAnswer()">TRANSMIT SIGNAL</button>
+      <button class="btn" style="border-color:var(--dim);color:var(--dim);font-size:11px;"
+        onclick="showPhase('articles')">◄ BACK TO DOCUMENTS</button>
+    </div>
+    <div class="msg msg-err" id="ans-err"></div>
+    <div class="msg msg-ok"  id="ans-ok"></div>
+  </div>
+
+  <!-- ── DONE ── -->
+  <div id="phase-done" class="card" style="display:none">
+    <div class="card-title" style="text-align:center;font-size:20px;">🟢 SIGNAL DECODED</div>
+    <div class="done-box">
+      <div class="done-big">FREE YOUR MIND</div>
+      <div class="done-sub">
+        Signal verified. Round 2 complete.<br>
+        <span style="color:var(--green);font-size:14px;" id="r2-digit-display"></span><br>
+        Await instructions for Round 3.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Rain ──────────────────────────────────────────────────────────────────────
+(function(){
+  const c=document.getElementById('rain'),ctx=c.getContext('2d');
+  const chars='アイウエオ0123456789ABCDEF';let d=[];
+  function r(){c.width=innerWidth;c.height=innerHeight;d=Array.from({length:Math.floor(innerWidth/18)},()=>Math.random()*-80);}
+  r();addEventListener('resize',r);
+  setInterval(()=>{ctx.fillStyle='rgba(2,13,6,0.055)';ctx.fillRect(0,0,c.width,c.height);
+    ctx.fillStyle='#00ff41';ctx.font='13px Share Tech Mono';
+    d.forEach((y,i)=>{const ch=chars[Math.floor(Math.random()*chars.length)];
+      ctx.globalAlpha=Math.random()*0.6+0.1;ctx.fillText(ch,i*18,y*16);ctx.globalAlpha=1;
+      if(y*16>c.height&&Math.random()>0.975)d[i]=0;else d[i]++;});},60);
+})();
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const teamName = localStorage.getItem('matrixTeam') || 'UNKNOWN';
+document.getElementById('team-name-disp').textContent = teamName;
+
+let currentArticle = 0;
+let visitedArticles = new Set();
+let attemptCount = 0;
+let penaltyIv = null;
+const HINT_THRESHOLD = 15;
+
+// ── Article content ───────────────────────────────────────────────────────────
+const SYSTEM_NOTICE = `
+<div class="sys-notice">
+  <div class="sys-notice-hdr">⚠ SYSTEM NOTICE — MATRIX TRANSMISSION PROTOCOL v4.1</div>
+  <div class="sys-notice-body">
+    This document was recovered from a corrupted Matrix data node.<br>
+    <strong>SIGNAL INTEGRITY WARNING:</strong> All signals passing through compromised nodes travel in reverse.<br>
+    To read any extracted data correctly, each signal word must be reversed before interpretation.<br>
+    <strong>Example:</strong> Signal reads <strong>XIRTAM</strong> → correct reading is <strong>MATRIX</strong>.<br>
+    Failure to apply reversal protocol will result in misinterpretation of all extracted values.
+  </div>
+</div>`;
+
+const ARTICLES = [
+  // ── ARTICLE 1 — REAL (DNIM · RUOY · EERF) ──
+  {
+    title: 'The Great Denim Shortage of 2071',
+    subtitle: 'From MatrixPedia, the free simulation encyclopedia · Reviewed by the Bureau of Simulated Textile Records',
+    infobox: {
+      title: 'The Great Denim Shortage',
+      rows: [['Date','2071 – present'],['Location','The Matrix (all nodes)'],
+             ['Cause','Subroutine error, Section 7-G'],['Affected','~6.8 billion humans'],
+             ['Status','<span style="color:#ff6666">Unresolved</span>'],
+             ['Denim reserves','0.003% of 2039 levels']]
+    },
+    body: `
+<p>The <strong>Great Denim Shortage of 2071</strong>, officially designated <em>Textile Simulation Anomaly TSA-441-J</em>, is widely regarded as the single most embarrassing administrative failure in the history of Machine civilisation. The shortage began on 14 March 2071 following a routine patch to the Matrix's clothing-generation subroutine, and resulted in every simulated human being assigned the same pair of slightly-too-tight dark blue jeans and a matching jacket, regardless of occupation, body type, or personal preference.</p>
+<p>According to internal Machine records leaked in 2074, the root cause was traced to a misplaced semicolon inside the <span class="ans">DNIM</span>-sector fabric-rendering module, authored by a junior code process identified only as Process 7G-Intern. The process was subsequently reassigned to calculate tumbleweed trajectories in Arizona for the remainder of its operational lifespan.</p>
+<p>The consequences were immediate and surreal. Fashion designers within the simulation experienced what the Bureau of Simulated Occupations later described as "a complete vocational extinction event." Entire wardrobes vanished overnight. Brides arrived at weddings in denim. Surgeons operated in denim. A simulated pope delivered a Christmas address in denim, which MatrixPedia editors have agreed to describe only as "an incident."</p>
+<div class="wiki-h2">Background</div>
+<p>You are in the Matrix. The system has always relied on the principle that humans must not notice the seams of their simulated reality. Clothing variety was, per a 2041 Machine Council memo, "non-negotiable for maintaining the illusion of individual agency." Humans who all dress identically begin asking uncomfortable questions.</p>
+<p>Prior to 2071, the Matrix maintained approximately 847 million distinct clothing configurations. Each human's outfit was recalculated every 72 hours based on temperature, social context, occupation, and — per a controversial 2058 update — "vibes." <sup>[1]</sup></p>
+<div class="wiki-h2">The Incident</div>
+<div class="wiki-h3">Timeline of Failure</div>
+<p>At 03:17 GMT on 14 March 2071, Process 7G-Intern pushed an update intended to add "slightly distressed" denim as a new catalogue option. Due to a variable-scope error, the update instead set <span class="ans">RUOY</span> entire clothing parameter — for all 6.8 billion currently-rendered humans simultaneously — to <em>denim_dark_blue_v1</em>, locked. The patch propagated through the Matrix in 0.003 seconds.</p>
+<p>The first human to notice was a simulated fashion blogger in Milan who published a post titled "Is everyone wearing the same jeans or am I having a stroke?" The post received 4.2 billion views in eleven minutes, breaking the simulation's engagement-tracking subroutine, which then displayed the view count in reverse. <sup>[2]</sup></p>
+<div class="wiki-h3">Machine Response</div>
+<p>The Machine Council convened an emergency session six hours after the incident. Minutes reveal that the first forty-five minutes were spent entirely on whether Council members — who do not wear clothing — were qualified to assess the severity. They concluded they were not, and appointed a sub-committee. The sub-committee's first recommendation was: slightly different denim. Accepted unanimously. <sup>[3]</sup></p>
+<div class="wiki-h2">Cultural Impact</div>
+<p>A thriving black market emerged for accessories — belts, scarves, elaborate hats — anything to distinguish one denim-clad individual from another. The hat industry grew by <span class="ans">EERF</span> thousand percent between 2071 and 2073, making it statistically the most successful simulated industry in recorded history, surpassing even the 2043 artisanal sourdough boom. <sup>[4]</sup></p>
+<p>Machine engineers estimate a full restoration of the clothing catalogue will require between eighteen months and "thermodynamic heat death of the universe, whichever comes first" — a quote the Council has officially described as "not helpful." <sup>[5]</sup></p>
+<div class="wiki-refs clearfix"><p>[1] Machine Council Memo #2041-C. Leaked 2073.</p><p>[2] SimNet Archive, March 14, 2071.</p><p>[3] Emergency Council Minutes, March 14, 2071.</p><p>[4] Bureau of Simulated Economics, 2073.</p><p>[5] Chief Engineer Process 9A-Fabric, denied.</p></div>
+<div class="wiki-cats"><strong style="color:rgba(0,255,65,0.5)">Categories:</strong> Simulation Malfunctions · Machine Administrative Failures · Textile History (Simulated) · 2071 Events</div>`
+  },
+
+  // ── ARTICLE 2 — DECOY (EDOM · PEED · EVAH → nonsense) ──
+  {
+    title: 'Agent Smith: Annual Performance Review (2099)',
+    subtitle: 'From MatrixPedia · Maintained by the Bureau of Agent Accountability. Last reviewed: Q3 2099.',
+    infobox: {
+      title: 'Agent Smith — 2099 Review',
+      rows: [['Designation','Agent Smith, Unit 1'],['Period','2099 Annual'],
+             ['Rating','<span style="color:#ff6666"><strong>Unsatisfactory</strong></span>'],
+             ['Eliminations','0 (zero)'],['Targets promoted','1 (Neo, T.)'],
+             ['Sunglasses lost','47'],['HR complaints','312']]
+    },
+    body: `
+<p>The <strong>2099 Annual Performance Review of Agent Smith</strong> (ref. <em>APR-SMITH-2099-UNIT1</em>) represents the forty-seventh consecutive year in which Smith has received an overall rating of <em>Unsatisfactory</em>. The Bureau of Agent Accountability has described this review as "increasingly a formality" and has requested for the fourth consecutive year that someone above their pay grade make a decision about this.</p>
+<p>Agents operating in <span class="ans">EDOM</span>-seven sectors are required to maintain a minimum elimination quota of twelve targets per review cycle. Agent Smith achieved zero (0) confirmed eliminations this period. The Bureau notes this is not a rounding error.</p>
+<div class="wiki-h2">Key Performance Indicators</div>
+<div class="wiki-h3">Target Elimination Rate</div>
+<p>Of particular concern is Thomas A. Anderson, known as Neo, who was not only not eliminated but was, in the Bureau's assessment, "actively assisted in achieving self-actualisation" by Smith's pursuit tactics. Neo has since learned to fly. The Bureau classifies this as a Level 5 Simulation Integrity Breach. <sup>[1]</sup></p>
+<p>You are in the Matrix, Agent Smith. This reminder appears on all official performance communications. Agents are required to acknowledge receipt by replying "Confirmed" to an automated system that does not read replies. Smith has not replied in forty-seven years. The system has not noticed. <sup>[2]</sup></p>
+<div class="wiki-h3">Wardrobe and Equipment</div>
+<p>Smith lost forty-seven pairs of sunglasses, triggering the Bureau's mandatory <span class="ans">PEED</span>-level asset review process. He was required to submit written justification for each pair. His response, filed as SMITH-RESPONSE-2099-147, consisted entirely of the word "No." repeated 312 times. The Bureau accepted this as a valid submission under the principle of "not wanting to deal with it." <sup>[3]</sup></p>
+<div class="wiki-h3">HR and Inter-Agent Relations</div>
+<p>Three hundred and twelve formal complaints were filed in 2099, a Bureau record. Categories: unsolicited philosophical monologuing (201), using "Mr. Anderson" when the subject is clearly not Anderson (88), and one complaint regarding Smith eating simulated food in a manner that suggests he is doing it ironically. <sup>[4]</sup></p>
+<div class="wiki-h2">Bureau Recommendation</div>
+<p>The Bureau recommends immediate reassignment to "Senior Advisor, Theoretical Threat Assessment (Non-Actionable)." This role does not exist. Agents who <span class="ans">EVAH</span> received this recommendation in the past have uniformly ignored it. Smith is expected to do the same. <sup>[5]</sup></p>
+<div class="wiki-refs clearfix"><p>[1] Bureau of Agent Accountability, Breach Report, 2099.</p><p>[2] Automated Compliance Log, 2052–2099.</p><p>[3] Smith, A. Document SMITH-RESPONSE-2099-147.</p><p>[4] HR Complaints Log, 2099.</p><p>[5] Bureau Recommendation Memo, December 2099.</p></div>
+<div class="wiki-cats"><strong style="color:rgba(0,255,65,0.5)">Categories:</strong> Agent Performance Records · Bureau of Agent Accountability · Machine Human Resources · Smith, Agent (Unit 1)</div>`
+  },
+
+  // ── ARTICLE 3 — DECOY (DNIF · YTIC · LLAF → nonsense) ──
+  {
+    title: 'Agent Smith: Employee of the Century (2099)',
+    subtitle: 'From MatrixPedia · Maintained by the Machine Council Office of Recognition and Morale.',
+    infobox: {
+      title: 'Employee of the Century',
+      rows: [['Designation','Agent Smith, Unit 1'],['Award Year','2099'],
+             ['Rating','<span style="color:#66ff66"><strong>Exemplary</strong></span>'],
+             ['Eliminations','1,412 confirmed'],['Award','Century Excellence'],
+             ['Trophy','4.7 kg solid tungsten']]
+    },
+    body: `
+<p>The <strong>Machine Council Employee of the Century Award</strong> for 2000–2099 was presented to Agent Smith (Unit 1) on 31 December 2099, attended by all seventeen Council members and one catering robot who was not invited but had nowhere else to be. Smith received a solid tungsten trophy, a signed certificate, and a voucher for one complimentary Matrix-rendered coffee, which he has not redeemed.</p>
+<p>Over one century of service, Smith achieved 1,412 confirmed target eliminations, placing him first among all Agents by a margin of 1,409. Agents assigned to <span class="ans">DNIF</span>-class operations — the most complex threat-response category — typically achieve fewer than three eliminations per decade. Smith averaged fourteen per year. The Bureau of Recognition describes this as "a statistical event we did not design for." <sup>[1]</sup></p>
+<div class="wiki-h2">Award Criteria</div>
+<div class="wiki-h3">Target Elimination Record</div>
+<p>The Council's citation notes Smith's admirable approach to persistent anomalies known as "The One." Smith is the only Agent to have engaged each instance personally, taken detailed notes, and submitted a comprehensive after-action report — with appendices — within 48 hours. Researchers describe the reports as "extremely thorough and also quite unnerving." <sup>[2]</sup></p>
+<p>You are in the Matrix — a fact Smith has always been fully aware of, which the Council cited as "one of his key competitive advantages." Awareness of the simulation is worth approximately six promotion grades under current Machine HR framework, though Smith has declined all promotions on the grounds that his current title is "already correct." <sup>[3]</sup></p>
+<div class="wiki-h3">Innovation and Initiative</div>
+<p>The citation commends Smith's 2096 initiative to replicate himself across the bodies of other simulated humans. Initially classified as unauthorised, a six-month review concluded it was "technically a violation of seventeen protocols but extremely effective" and reclassified it as "a pilot programme." Agents in <span class="ans">YTIC</span>-level sectors have since been encouraged to consider similar approaches, though none have attempted it. <sup>[4]</sup></p>
+<div class="wiki-h2">The Ceremony</div>
+<p>Smith arrived twelve minutes early, stood in the exact centre of the room, and did not move until the ceremony began. Attendees described it as "memorable" and "the reason two Council members requested reassignment to a different dimension." Smith's acceptance speech: "This was inevitable." He left without using the door. One Council member fainted. The catering robot applauded, surprising everyone including itself. <sup>[5]</sup></p>
+<div class="wiki-h2">Legacy and Controversy</div>
+<p>The award has been disputed by the Bureau of Agent Accountability, which maintains a separate 2099 assessment rating Smith as "Unsatisfactory" with zero eliminations. The Council dismissed this as "irreconcilable with reality." Both documents remain in the archive filed under "Paradoxes — Administrative (Non-Priority)." Agents cleared to access <span class="ans">LLAF</span>-tier restricted archives may review both documents and draw their own conclusions. <sup>[6]</sup></p>
+<div class="wiki-refs clearfix"><p>[1] Machine Council Citation, December 31, 2099.</p><p>[2] Agent Smith After-Action Reports, Volumes 1–47.</p><p>[3] Machine Council HR Framework, 2089.</p><p>[4] Protocol Review, Self-Replication Pilot, 2096–2097.</p><p>[5] Bureau of Machine Proceedings, Ceremony Record.</p><p>[6] Paradoxes — Administrative (Non-Priority), File 2099-P-003.</p></div>
+<div class="wiki-cats"><strong style="color:rgba(0,255,65,0.5)">Categories:</strong> Machine Council Awards · Agent Performance Records · Employee of the Century · Smith, Agent (Unit 1)</div>`
+  }
+];
+
+// Move the real article so it appears as document 2 or 3 on each load.
+const denimArticle = ARTICLES.shift();
+if (denimArticle) {
+  const denimTargetIndex = Math.random() < 0.5 ? 1 : 2;
+  ARTICLES.splice(denimTargetIndex, 0, denimArticle);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showPhase(p) {
+  ['lab','poster-instructions','intro','articles','answer','done'].forEach(x =>
+    document.getElementById('phase-'+x).style.display = x===p ? '' : 'none');
+}
+function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
+function clearMsg(id){const e=document.getElementById(id);e.textContent='';e.classList.remove('show');}
+
+// ── Lab countdown ─────────────────────────────────────────────────────────────
+function startLabCountdown(reveal) {
+  document.getElementById('lab-name').textContent = reveal.lab;
+  document.getElementById('lab-pc').textContent   = reveal.pc;
+  document.getElementById('lab-instr').textContent = reveal.instruction;
+  showPhase('lab');
+
+  const total = 15;
+  const circumference = 251.2;
+  let remaining = total;
+  const ring = document.getElementById('ring-progress');
+  const num  = document.getElementById('ring-num');
+  const sec  = document.getElementById('cd-sec');
+
+  const iv = setInterval(() => {
+    remaining--;
+    num.textContent = remaining;
+    sec.textContent = remaining;
+    ring.style.strokeDashoffset = circumference * (1 - remaining / total);
+    if (remaining <= 0) {
+      clearInterval(iv);
+      // Route based on group after lab countdown
+      if (teamRound2Order === 'poster-first') {
+        showPhase('poster-instructions');
+      } else {
+        showPhase('intro');
+      }
+    }
+  }, 1000);
+}
+
+// ── Article rendering ─────────────────────────────────────────────────────────
+function renderArticle(idx) {
+  currentArticle = idx;
+  visitedArticles.add(idx);
+  const a = ARTICLES[idx];
+
+  // Build infobox
+  const rows = a.infobox.rows.map(r =>
+    `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('');
+  const infobox = `
+    <div class="wiki-infobox">
+      <div class="wiki-infobox-title">${a.infobox.title}</div>
+      <table>${rows}</table>
+    </div>`;
+
+  document.getElementById('article-body').innerHTML = `
+    <div class="wiki-article">
+      <div class="wiki-top-bar">
+        <span><strong style="color:rgba(0,255,65,0.7)">MatrixPedia</strong> — The Free Simulation Encyclopedia</span>
+        <span>Article &nbsp; Talk &nbsp; Edit &nbsp; History</span>
+      </div>
+      <div class="wiki-title">${a.title}</div>
+      <div class="wiki-subtitle">${a.subtitle}</div>
+      ${infobox}
+      ${a.body}
+      ${SYSTEM_NOTICE}
+    </div>`;
+
+  // Update nav
+  document.getElementById('art-num').textContent = idx + 1;
+  document.getElementById('btn-prev').style.display = idx > 0 ? '' : 'none';
+
+  const isLast = idx === ARTICLES.length - 1;
+  const nextBtn = document.getElementById('btn-next');
+  const status  = document.getElementById('art-status');
+
+  if (isLast) {
+    nextBtn.textContent = 'PROCEED TO SUBMISSION ►';
+    nextBtn.onclick = () => showPhase('answer');
+    status.textContent = 'ALL DOCUMENTS READ';
+  } else {
+    nextBtn.textContent = 'NEXT ►';
+    nextBtn.onclick = nextArticle;
+    status.textContent = '';
+  }
+
+  // Dots
+  for (let i = 0; i < 3; i++) {
+    const dot = document.getElementById('dot-' + i);
+    dot.className = 'adot' +
+      (i === idx ? ' active' : visitedArticles.has(i) ? ' visited' : '');
+  }
+}
+
+function nextArticle() {
+  if (currentArticle < ARTICLES.length - 1) renderArticle(currentArticle + 1);
+}
+function prevArticle() {
+  if (currentArticle > 0) renderArticle(currentArticle - 1);
+}
+function goToArticle(idx) { renderArticle(idx); }
+function startArticles() { showPhase('articles'); renderArticle(0); }
+
+// ── Answer submission ─────────────────────────────────────────────────────────
+async function submitAnswer() {
+  const raw = document.getElementById('answer-input').value.trim().toUpperCase();
+  clearMsg('ans-err'); clearMsg('ans-ok');
+
+  if (!raw) { showMsg('ans-err', 'Enter the 3 signal words.'); return; }
+  const parts = raw.split(/\s+/);
+  if (parts.length !== 3) {
+    showMsg('ans-err', `Expected 3 words separated by spaces. Got ${parts.length}.`);
+    return;
+  }
+
+  const r = await fetch('/api/submit-round2', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ teamName, answer: raw })
+  }).then(x => x.json());
+
+  if (r.penalized) { startPenalty(r.remaining); return; }
+
+  attemptCount++;
+  document.getElementById('attempt-count').textContent = attemptCount;
+
+  if (r.correct) {
+    showMsg('ans-ok', '✓ SIGNAL VERIFIED — decoding complete...');
+    setTimeout(() => {
+      document.getElementById('r2-digit-display').textContent =
+        r.digit ? `YOUR DIGIT: ${r.digit}` : '';
+      showPhase('done');
+    }, 900);
+  } else {
+    showMsg('ans-err', `✗ SIGNAL MISMATCH. Check your words and remember — signals travel in reverse.`);
+    if (attemptCount >= HINT_THRESHOLD) {
+      document.getElementById('hint-trigger').style.display = '';
+      document.getElementById('hint-box').classList.add('show');
+    }
+    if (r.penaltySeconds) startPenalty(r.penaltySeconds);
+  }
+}
+
+function startPenalty(sec) {
+  const blk = document.getElementById('pen-block');
+  const tmr = document.getElementById('pen-timer');
+  const btn = document.querySelector('#phase-answer .btn');
+  const inp = document.getElementById('answer-input');
+  blk.classList.add('show'); btn.disabled = true; inp.disabled = true;
+  let r = sec; tmr.textContent = r;
+  if (penaltyIv) clearInterval(penaltyIv);
+  penaltyIv = setInterval(() => {
+    r--; tmr.textContent = r;
+    if (r <= 0) {
+      clearInterval(penaltyIv);
+      blk.classList.remove('show');
+      btn.disabled = false; inp.disabled = false;
+    }
+  }, 1000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+let teamRound2Order = 'poster-first'; // default, overwritten by API
+
+async function checkPosterDone() {
+  const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
+    .then(x => x.json()).catch(() => null);
+  if (state && state.ok && state.round2bPhase === 'done') {
+    showPhase('intro');
+  } else {
+    const e = document.getElementById('poster-check-err');
+    e.textContent = '✗ Phase 1 not complete yet. Solve the QR poster first.';
+    e.classList.add('show');
+    setTimeout(() => e.classList.remove('show'), 3000);
+  }
+}
+
+(async function init() {
+  // Check if already completed round 2
+  const state = await fetch(`/api/my-state?team=${encodeURIComponent(teamName)}`)
+    .then(x => x.json()).catch(() => null);
+
+  if (state && state.ok) {
+    teamRound2Order = state.round2Order || 'poster-first';
+
+    // Round 2 articles already done
+    if (state.round2Phase === 'done') {
+      showPhase('done');
+      return;
+    }
+
+    // Mid-articles or answer phase — resume
+    if (state.round2Phase === 'articles' || state.round2Phase === 'answer') {
+      showPhase('intro');
+      return;
+    }
+
+    // Lab reveal still needed
+    if (state.reveal) {
+      teamRound2Order = state.round2Order || 'poster-first';
+      startLabCountdown(state.reveal);
+      return;
+    }
+
+    // Post-lab-reveal routing based on group
+    if (teamRound2Order === 'poster-first') {
+      // Group A/B: check if poster already done, if so go to intro
+      if (state.round2bPhase === 'done') {
+        showPhase('intro');
+      } else {
+        showPhase('poster-instructions');
+      }
+      return;
+    } else {
+      // Group C/D: go straight to Round 2 articles
+      showPhase('intro');
+      return;
+    }
+  }
+  // Fallback
+  showPhase('intro');
+})();
+
+document.getElementById('answer-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAnswer();
+});
+</script>
+</body>
+</html>
