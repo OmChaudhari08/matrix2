@@ -24,7 +24,7 @@
   .status-label{font-size:11px;color:var(--dim);letter-spacing:0.15em;}
 
   /* Stats */
-  .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;}
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px;}
   .stat{background:var(--panel);border:1px solid var(--border);padding:14px;border-radius:2px;}
   .stat-val{font-family:var(--display);font-size:32px;font-weight:700;}
   .stat-label{font-size:10px;color:var(--dim);letter-spacing:0.2em;margin-top:3px;}
@@ -67,7 +67,7 @@
 
 <table>
   <thead><tr>
-    <th>#</th><th>TEAM</th><th>R1 PHASE</th><th>R2 PHASE</th><th>LAYER</th><th>TIME</th><th>STRIKES</th><th>HINTS</th>
+    <th>#</th><th>TEAM</th><th>R1 PHASE</th><th>R2 ARTICLES</th><th>R2 POSTER</th><th>LAYER</th><th>TIME</th><th>STRIKES</th><th>HINTS</th>
   </tr></thead>
   <tbody id="tbody"></tbody>
 </table>
@@ -100,27 +100,32 @@ async function refresh(){
     const waiting=teams.filter(t=>t.round1Phase==='waiting').length;
     const audio=teams.filter(t=>t.round1Phase==='audio').length;
     const wordle=teams.filter(t=>t.round1Phase==='wordle').length;
-    const round2=teams.filter(t=>(t.round2Phase||'locked')!=='locked').length;
-    const cleared=teams.filter(t=>(t.round2Phase||'locked')==='done').length;
+    const round2Articles=teams.filter(t=>(t.round2ArticlesPhase||'locked')!=='locked').length;
+    const round2Poster=teams.filter(t=>(t.round2PosterPhase||'locked')!=='locked').length;
+    const cleared=teams.filter(t=>(t.round2ArticlesPhase||'locked')==='done' && (t.round2PosterPhase||'locked')==='done').length;
 
     document.getElementById('stats').innerHTML=`
       <div class="stat"><div class="stat-val" style="color:var(--dim)">${waiting}</div><div class="stat-label">WAITING</div></div>
       <div class="stat"><div class="stat-val" style="color:var(--amber)">${audio}</div><div class="stat-label">ON AUDIO</div></div>
       <div class="stat"><div class="stat-val" style="color:#4488ff">${wordle}</div><div class="stat-label">ON WORDLE</div></div>
-      <div class="stat"><div class="stat-val" style="color:#4488ff">${round2}</div><div class="stat-label">IN ROUND 2</div></div>
+      <div class="stat"><div class="stat-val" style="color:#4488ff">${round2Articles}</div><div class="stat-label">R2 ARTICLES</div></div>
+      <div class="stat"><div class="stat-val" style="color:#4488ff">${round2Poster}</div><div class="stat-label">R2 POSTER</div></div>
       <div class="stat"><div class="stat-val" style="color:var(--green)">${cleared}</div><div class="stat-label">CLEARED R2</div></div>
     `;
 
     document.getElementById('tbody').innerHTML=teams.map((t,i)=>{
       const phase=t.round1Phase||'waiting';
       const badgeClass={waiting:'b-wait',audio:'b-audio',wordle:'b-wordle',done:'b-done'}[phase]||'b-wait';
-      const r2=t.round2Phase||'locked';
-      const r2BadgeClass={locked:'b-r2locked',articles:'b-r2docs',answer:'b-r2answer',done:'b-r2done'}[r2]||'b-r2locked';
+      const r2Articles=t.round2ArticlesPhase||'locked';
+      const r2Poster=t.round2PosterPhase||'locked';
+      const r2ArticlesBadgeClass={locked:'b-r2locked',articles:'b-r2docs',answer:'b-r2answer',done:'b-r2done'}[r2Articles]||'b-r2locked';
+      const r2PosterBadgeClass={locked:'b-r2locked',puzzle:'b-r2docs',done:'b-r2done'}[r2Poster]||'b-r2locked';
       return`<tr>
         <td style="color:rgba(0,255,65,0.4);font-family:var(--display);font-size:16px;font-weight:700">${i+1}</td>
         <td style="font-family:var(--display);font-weight:700;font-size:15px">${t.name}</td>
         <td><span class="badge ${badgeClass}">${phase.toUpperCase()}</span></td>
-        <td><span class="badge ${r2BadgeClass}">${r2.toUpperCase()}</span></td>
+        <td><span class="badge ${r2ArticlesBadgeClass}">${r2Articles.toUpperCase()}</span></td>
+        <td><span class="badge ${r2PosterBadgeClass}">${r2Poster.toUpperCase()}</span></td>
         <td style="color:var(--dim)">${t.layer||1}</td>
         <td>${fmt(t.elapsed)}</td>
         <td style="color:${t.totalStrikes>4?'var(--red)':t.totalStrikes>2?'var(--amber)':'inherit'}">${t.totalStrikes}</td>

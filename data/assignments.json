@@ -1,0 +1,26 @@
+{
+  "teams": {
+    "TEAM FEARLESS WARRIORS": { "round2Order": "poster-first" },
+    "TEAM HUNTERS": { "round2Order": "articles-first" },
+    "TEAM 4JEZZ": { "round2Order": "poster-first" },
+    "TEAM PIRATES": { "round2Order": "articles-first" },
+    "TEAM INFINITY": { "round2Order": "poster-first" },
+    "TEAM HUNTER": { "round2Order": "articles-first" },
+    "TEAM RED PILL CREW": { "round2Order": "poster-first" },
+    "TEAM TEAM_INCEPTION": { "round2Order": "articles-first" },
+    "TEAM THE LATE FINDERS": { "round2Order": "poster-first" },
+    "TEAM THE HIDDEN SEEKERS": { "round2Order": "articles-first" },
+    "TEAM DORARA": { "round2Order": "poster-first" },
+    "TEAM THE FAB GIRLS": { "round2Order": "articles-first" },
+    "TEAM MYSTERY MASTERS": { "round2Order": "poster-first" },
+    "TEAM TEAM PARA-DOX": { "round2Order": "articles-first" },
+    "TEAM FRIENDSHIP GOAL": { "round2Order": "poster-first" },
+    "TEAM SILENT TEAM": { "round2Order": "articles-first" },
+    "TEAM NEO": { "round2Order": "poster-first" },
+    "TEAM RADIANTS": { "round2Order": "articles-first" },
+    "TEAM BLACK MOON": { "round2Order": "poster-first" },
+    "TEAM HOG RIDAA": { "round2Order": "articles-first" },
+    "TEAM DAGGER DUO": { "round2Order": "poster-first" }
+  },
+  "fallback": { "flowGroup": "A", "posterGroup": 0 }
+}

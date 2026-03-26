@@ -4,74 +4,91 @@ const path = require('path');
 const url = require('url');
 
 const DATA_FILE = path.join(__dirname, 'data', 'teams.json');
+const GAME_CONFIG_FILE = path.join(__dirname, 'data', 'game-config.json');
+const ASSIGNMENTS_FILE = path.join(__dirname, 'data', 'assignments.json');
 const PORT = 3000;
 
-// ══════════════════════════════════════════════════════════════════
-// PUZZLE CONTENT — UPDATE EVERYTHING MARKED TODO BEFORE EVENT DAY
-// ══════════════════════════════════════════════════════════════════
+// ── Reset teams on startup (event-day fresh state) ────────────────────────────
+try {
+  fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2));
+} catch (err) {
+  console.error('Failed to reset teams.json on startup:', err);
+}
 
-const GAME_CONFIG = {
-  audioFile: '/audio/clue.mp3',      // TODO: place audio at public/audio/clue.mp3
-  audioAnswer: 'TRINITY',           // TODO: actual answer from audio clue
+// ── Config + assignments ─────────────────────────────────────────────────────
+const DEFAULT_GAME_CONFIG = {
+  audioFile: '/audio/clue.mp3',
+  audioAnswer: 'TRINITY',
   wordleWord: 'SMITH',
   labInstruction: 'Proceed immediately. Tell no one your path.',
-  audioPenalty: 30,   // seconds
+  audioPenalty: 30,
   round2Answer: 'DNIM RUOY EERF',
   round2Penalty: 60,
   round2Digit: '7',
-  posterGroups: {
-    1: { answer: 'ORACLE', penalty: 60 },
-    2: { answer: 'ZION', penalty: 60 },
-    3: { answer: 'NEBUCHADNEZZAR', penalty: 60 },
-    4: { answer: 'MORPHEUS', penalty: 60 },
-  },
-  hints: {
-    round1Audio: [
-      { delaySeconds: 5 * 60, text: '<3' },
-      { delaySeconds: 3 * 60, text: 'TODO: add the second Round 1 hint.' },
-      { delaySeconds: 2 * 60, text: 'TODO: add the third Round 1 hint.' },
-    ],
-  },
+  posterGroups: {},
+  hints: { round1Audio: [] },
 };
 
-// ══════════════════════════════════════════════════════════════════
-// SEAT ASSIGNMENTS — map TEAM NAME (uppercase) → { lab, pc, group }
-// group: 'A' | 'B' | 'C' | 'D'
-//   A + B → Phase 1 (QR Poster) first, then Phase 2 (Red/Blue Pill)
-//   C + D → Phase 2 (Red/Blue Pill) first, then Phase 1 (QR Poster)
-// Fill this in before the event. Team names must match exactly
-// what participants type at registration (stored as uppercase).
-// ══════════════════════════════════════════════════════════════════
-const SEAT_ASSIGNMENTS = {
-  'TEAM ALPHA': { lab: 'LAB 1', pc: 'PC 01', group: 'A' },
-  'TEAM BETA':  { lab: 'LAB 1', pc: 'PC 02', group: 'B' },
-  'TEAM GAMMA': { lab: 'LAB 2', pc: 'PC 03', group: 'C' },
-  'TEAM DELTA': { lab: 'LAB 2', pc: 'PC 04', group: 'D' },
-  // TODO: add all teams before event day
+const DEFAULT_ASSIGNMENTS = {
+  teams: {},
+  fallback: { flowGroup: 'A', posterGroup: 0 },
 };
 
-const SEAT_FALLBACK = { lab: 'LAB ??', pc: 'PC ??', group: 'A' };
-
-function getSeat(teamName) {
-  return SEAT_ASSIGNMENTS[teamName] || SEAT_FALLBACK;
+function readJsonSafe(filePath, fallback) {
+  if (!fs.existsSync(filePath)) return fallback;
+  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); }
+  catch { return fallback; }
 }
 
-// A/B → poster first then pill | C/D → pill first then poster
-function getRound2Order(teamName) {
-  const g = getSeat(teamName).group || 'A';
-  return (g === 'A' || g === 'B') ? 'poster-first' : 'pill-first';
+function getGameConfig() {
+  return readJsonSafe(GAME_CONFIG_FILE, DEFAULT_GAME_CONFIG);
 }
 
-function getLabReveal(teamName) {
-  const seat = getSeat(teamName);
+function getAssignments() {
+  return readJsonSafe(ASSIGNMENTS_FILE, DEFAULT_ASSIGNMENTS);
+}
+
+function normalizeFlowGroup(value, fallback) {
+  const g = String(value || fallback || 'A').toUpperCase();
+  return ['A', 'B', 'C', 'D'].includes(g) ? g : (fallback || 'A');
+}
+
+function normalizeRound2Order(value) {
+  const v = String(value || '').toLowerCase();
+  if (v === 'poster-first' || v === 'poster') return 'poster-first';
+  if (v === 'articles-first' || v === 'articles') return 'articles-first';
+  return '';
+}
+
+function normalizePosterGroup(value) {
+  const pg = Number.parseInt(value, 10);
+  return Number.isInteger(pg) && pg > 0 ? pg : 0;
+}
+
+function getSeat(teamName, assignments) {
+  const fallback = assignments.fallback || DEFAULT_ASSIGNMENTS.fallback;
+  const team = (assignments.teams && assignments.teams[teamName]) || null;
+  const round2Order = normalizeRound2Order(team && team.round2Order);
   return {
-    lab: seat.lab,
-    pc: seat.pc,
-    instruction: GAME_CONFIG.labInstruction,
+    flowGroup: normalizeFlowGroup(team && team.flowGroup, fallback.flowGroup),
+    posterGroup: normalizePosterGroup(team && team.posterGroup),
+    round2Order,
   };
 }
 
-const GROUP_ASSIGNMENTS = {};
+// A/B → poster first then articles | C/D → articles first then poster
+function getRound2Order(teamName, assignments) {
+  const seat = getSeat(teamName, assignments);
+  if (seat.round2Order) return seat.round2Order;
+  const g = seat.flowGroup || 'A';
+  return (g === 'A' || g === 'B') ? 'poster-first' : 'articles-first';
+}
+
+function getLabReveal(teamName, assignments, gameConfig) {
+  return {
+    instruction: gameConfig.labInstruction || 'Proceed to the lab.',
+  };
+}
 
 // ── SSE clients ───────────────────────────────────────────────────────────────
 let sseClients = [];
@@ -102,11 +119,12 @@ function getOrCreateTeam(teamName, teams) {
   if (!teams[teamName]) {
     teams[teamName] = {
       name: teamName,
-      group: 0,
+      flowGroup: 'A',
+      posterGroup: 0,
       round1Phase: 'waiting',  // waiting | audio | wordle | done
       round1AudioStartedAt: null,
-      round2Phase: 'locked',   // locked | articles | answer | done
-      round2bPhase: 'locked',  // locked | puzzle | done
+      round2ArticlesPhase: 'locked', // locked | articles | answer | done
+      round2PosterPhase: 'locked',   // locked | puzzle | done
       round2Attempts: 0,
       audioSolvedAt: null,
       wordleGuesses: [],
@@ -124,19 +142,35 @@ function getOrCreateTeam(teamName, teams) {
   const team = teams[teamName];
   let changed = false;
 
-  const normalizedGroup = Number.parseInt(team.group, 10);
-  if (!Number.isInteger(normalizedGroup) || normalizedGroup < 0) {
-    if (team.group !== 0) {
-      team.group = 0;
-      changed = true;
-    }
-  } else if (team.group !== normalizedGroup) {
-    team.group = normalizedGroup;
+  const normalizedPosterGroup = normalizePosterGroup(team.posterGroup);
+  if (team.posterGroup !== normalizedPosterGroup) {
+    team.posterGroup = normalizedPosterGroup;
     changed = true;
   }
 
-  if (!team.round2bPhase) {
-    team.round2bPhase = 'locked';
+  const normalizedFlow = normalizeFlowGroup(team.flowGroup, 'A');
+  if (team.flowGroup !== normalizedFlow) {
+    team.flowGroup = normalizedFlow;
+    changed = true;
+  }
+
+  if (!team.round2ArticlesPhase && team.round2Phase) {
+    team.round2ArticlesPhase = team.round2Phase;
+    changed = true;
+  }
+
+  if (!team.round2PosterPhase && team.round2bPhase) {
+    team.round2PosterPhase = team.round2bPhase;
+    changed = true;
+  }
+
+  if (!team.round2ArticlesPhase) {
+    team.round2ArticlesPhase = 'locked';
+    changed = true;
+  }
+
+  if (!team.round2PosterPhase) {
+    team.round2PosterPhase = 'locked';
     changed = true;
   }
 
@@ -153,15 +187,19 @@ function isPenalized(team) {
   return team.penaltyUntil && Date.now() < team.penaltyUntil;
 }
 
+function normalizeAnswer(input) {
+  return String(input || '').trim().toUpperCase().replace(/\s+/g, ' ');
+}
+
 function ensureRound1AudioStarted(team) {
   if (team.round1AudioStartedAt) return false;
   team.round1AudioStartedAt = Date.now();
   return true;
 }
 
-function getRound1AudioHintState(team) {
-  const hintConfig = Array.isArray(GAME_CONFIG.hints && GAME_CONFIG.hints.round1Audio)
-    ? GAME_CONFIG.hints.round1Audio
+function getRound1AudioHintState(team, gameConfig) {
+  const hintConfig = Array.isArray(gameConfig.hints && gameConfig.hints.round1Audio)
+    ? gameConfig.hints.round1Audio
     : [];
 
   let unlockAfterSeconds = 0;
@@ -255,6 +293,8 @@ function handleAPI(req, res, parsedUrl) {
   let body = '';
   req.on('data', d => body += d);
   req.on('end', () => {
+    const gameConfig = getGameConfig();
+    const assignments = getAssignments();
     let data = {};
     try { data = JSON.parse(body || '{}'); } catch {}
 
@@ -265,7 +305,8 @@ function handleAPI(req, res, parsedUrl) {
         name: t.name,
         layer: t.layer,
         round1Phase: t.round1Phase,
-        round2Phase: t.round2Phase || 'locked',
+        round2ArticlesPhase: t.round2ArticlesPhase || 'locked',
+        round2PosterPhase: t.round2PosterPhase || 'locked',
         finished: t.finished,
         totalStrikes: t.totalStrikes,
         hints: t.hints || 0,
@@ -289,19 +330,34 @@ function handleAPI(req, res, parsedUrl) {
       return res.end(JSON.stringify({
         ok: true,
         teamName: team.name,
-        group: team.group || 0,
-        abcdGroup: getSeat(team.name).group || 'A',
-        round2Order: getRound2Order(team.name),
+        flowGroup: getSeat(team.name, assignments).flowGroup || 'A',
+        posterGroup: team.posterGroup || 0,
+        round2Order: getRound2Order(team.name, assignments),
         round1Phase: team.round1Phase,
-        round1AudioHint: getRound1AudioHintState(team),
-        round2Phase: team.round2Phase || 'locked',
-        round2bPhase: team.round2bPhase || 'locked',
+        round1AudioHint: getRound1AudioHintState(team, gameConfig),
+        round2ArticlesPhase: team.round2ArticlesPhase || 'locked',
+        round2PosterPhase: team.round2PosterPhase || 'locked',
         round2Attempts: team.round2Attempts || 0,
-        round2Digit: (team.round2Phase || 'locked') === 'done' ? GAME_CONFIG.round2Digit : null,
+        round2Digit: (team.round2ArticlesPhase || 'locked') === 'done' ? gameConfig.round2Digit : null,
         wordleGuesses: team.wordleGuesses || [],
         penaltyRemaining: isPenalized(team) ? Math.ceil((team.penaltyUntil - Date.now()) / 1000) : 0,
         gamePhase: gameState.phase,
-        reveal: team.round1Phase === 'done' ? getLabReveal(team.name) : null,
+        reveal: team.round1Phase === 'done' ? getLabReveal(team.name, assignments, gameConfig) : null,
+      }));
+    }
+
+    // GET /api/poster-config?group=1
+    if (req.method === 'GET' && route === '/api/poster-config') {
+      const pg = Number.parseInt(parsedUrl.query.group, 10);
+      const groupConfig = gameConfig.posterGroups && gameConfig.posterGroups[String(pg)];
+      if (!groupConfig) return res.end(JSON.stringify({ ok: false, error: 'Invalid group' }));
+      return res.end(JSON.stringify({
+        ok: true,
+        group: {
+          label: groupConfig.label || `GROUP ${pg}`,
+          shift: groupConfig.shift || 0,
+          message: groupConfig.message || '',
+        },
       }));
     }
 
@@ -313,11 +369,9 @@ function handleAPI(req, res, parsedUrl) {
       const teams = loadTeams();
       const team = getOrCreateTeam(teamName.trim().toUpperCase(), teams);
       let changed = false;
-      const assignedGroup = GROUP_ASSIGNMENTS[team.name];
-      if (assignedGroup && team.group !== assignedGroup) {
-        team.group = assignedGroup;
-        changed = true;
-      }
+      const seat = getSeat(team.name, assignments);
+      if (team.flowGroup !== seat.flowGroup) { team.flowGroup = seat.flowGroup; changed = true; }
+      if (team.posterGroup !== seat.posterGroup) { team.posterGroup = seat.posterGroup; changed = true; }
       if (gameState.phase === 'audio' && team.round1Phase === 'waiting') {
         team.round1Phase = 'audio';
         if (ensureRound1AudioStarted(team)) changed = true;
@@ -327,8 +381,8 @@ function handleAPI(req, res, parsedUrl) {
       if (changed) saveTeams(teams);
       return res.end(JSON.stringify({
         ok: true,
-        team: { name: team.name, round1Phase: team.round1Phase, group: team.group || 0 },
-        round1AudioHint: getRound1AudioHintState(team),
+        team: { name: team.name, round1Phase: team.round1Phase, flowGroup: team.flowGroup, posterGroup: team.posterGroup || 0 },
+        round1AudioHint: getRound1AudioHintState(team, gameConfig),
         gamePhase: gameState.phase,
       }));
     }
@@ -344,7 +398,7 @@ function handleAPI(req, res, parsedUrl) {
         }
       });
       saveTeams(teams);
-      broadcastSSE('phase', { phase: 'audio', audioUrl: GAME_CONFIG.audioFile });
+      broadcastSSE('phase', { phase: 'audio', audioUrl: gameConfig.audioFile });
       console.log(' Audio broadcast triggered');
       return res.end(JSON.stringify({ ok: true, clientsNotified: sseClients.length }));
     }
@@ -364,7 +418,7 @@ function handleAPI(req, res, parsedUrl) {
       if (team.round1Phase === 'wordle' || team.round1Phase === 'done')
         return res.end(JSON.stringify({ ok: true, correct: true, alreadySolved: true }));
 
-      const correct = answer.trim().toUpperCase() === GAME_CONFIG.audioAnswer.toUpperCase();
+      const correct = normalizeAnswer(answer) === normalizeAnswer(gameConfig.audioAnswer);
       if (correct) {
         team.round1Phase = 'wordle';
         team.audioSolvedAt = Date.now();
@@ -372,11 +426,11 @@ function handleAPI(req, res, parsedUrl) {
         return res.end(JSON.stringify({ ok: true, correct: true }));
       } else {
         team.totalStrikes++;
-        team.penaltyUntil = Date.now() + GAME_CONFIG.audioPenalty * 1000;
+        team.penaltyUntil = Date.now() + gameConfig.audioPenalty * 1000;
         saveTeams(teams);
         return res.end(JSON.stringify({
           ok: true, correct: false,
-          penaltySeconds: GAME_CONFIG.audioPenalty,
+          penaltySeconds: gameConfig.audioPenalty,
         }));
       }
     }
@@ -394,11 +448,11 @@ function handleAPI(req, res, parsedUrl) {
       if (g.length !== 5)
         return res.end(JSON.stringify({ ok: false, error: 'Guess must be 5 letters' }));
 
-      const scored = scoreWordle(g, GAME_CONFIG.wordleWord);
+      const scored = scoreWordle(g, gameConfig.wordleWord);
       team.wordleGuesses = team.wordleGuesses || [];
       team.wordleGuesses.push({ guess: g, scored });
 
-      const won = g === GAME_CONFIG.wordleWord.toUpperCase();
+      const won = g === String(gameConfig.wordleWord || '').toUpperCase();
       const lost = !won && team.wordleGuesses.length >= 6;
 
       if (won) {
@@ -406,7 +460,7 @@ function handleAPI(req, res, parsedUrl) {
         team.wordleSolved = true;
         team.layer = 2;
         saveTeams(teams);
-        return res.end(JSON.stringify({ ok: true, scored, won: true, reveal: getLabReveal(team.name) }));
+        return res.end(JSON.stringify({ ok: true, scored, won: true, reveal: getLabReveal(team.name, assignments, gameConfig) }));
       }
       if (lost) {
         team.wordleGuesses = [];
@@ -425,7 +479,7 @@ function handleAPI(req, res, parsedUrl) {
       }));
     }
 
-    // POST /api/round2-enter
+    // POST /api/round2-enter (Round 2 Articles)
     if (req.method === 'POST' && route === '/api/round2-enter') {
       const { teamName } = data;
       const teams = loadTeams();
@@ -434,22 +488,22 @@ function handleAPI(req, res, parsedUrl) {
       if (team.round1Phase !== 'done')
         return res.end(JSON.stringify({ ok: false, error: 'Complete Round 1 first' }));
 
-      if ((team.round2Phase || 'locked') === 'locked') {
-        team.round2Phase = 'articles';
+      if ((team.round2ArticlesPhase || 'locked') === 'locked') {
+        team.round2ArticlesPhase = 'articles';
         saveTeams(teams);
       }
 
       return res.end(JSON.stringify({
         ok: true,
-        round2Phase: team.round2Phase || 'locked',
+        round2ArticlesPhase: team.round2ArticlesPhase || 'locked',
         round2Attempts: team.round2Attempts || 0,
-        round2Digit: (team.round2Phase || 'locked') === 'done' ? GAME_CONFIG.round2Digit : null,
-        abcdGroup: getSeat(team.name).group || 'A',
-        round2Order: getRound2Order(team.name),
+        round2Digit: (team.round2ArticlesPhase || 'locked') === 'done' ? gameConfig.round2Digit : null,
+        flowGroup: getSeat(team.name, assignments).flowGroup || 'A',
+        round2Order: getRound2Order(team.name, assignments),
       }));
     }
 
-    // POST /api/submit-round2
+    // POST /api/submit-round2 (Round 2 Articles)
     if (req.method === 'POST' && route === '/api/submit-round2') {
       const { teamName, answer } = data;
       const teams = loadTeams();
@@ -459,12 +513,12 @@ function handleAPI(req, res, parsedUrl) {
       if (team.round1Phase !== 'done')
         return res.end(JSON.stringify({ ok: false, error: 'Complete Round 1 first' }));
 
-      if ((team.round2Phase || 'locked') === 'done') {
+      if ((team.round2ArticlesPhase || 'locked') === 'done') {
         return res.end(JSON.stringify({
           ok: true,
           correct: true,
           alreadySolved: true,
-          digit: GAME_CONFIG.round2Digit,
+          digit: gameConfig.round2Digit,
           attemptsUsed: team.round2Attempts || 0,
         }));
       }
@@ -477,45 +531,46 @@ function handleAPI(req, res, parsedUrl) {
         }));
       }
 
-      team.round2Phase = 'answer';
+      team.round2ArticlesPhase = 'answer';
       team.round2Attempts = (team.round2Attempts || 0) + 1;
 
-      const correct = String(answer || '').trim().toUpperCase() === GAME_CONFIG.round2Answer.toUpperCase();
+      const correct = normalizeAnswer(answer) === normalizeAnswer(gameConfig.round2Answer);
 
       if (correct) {
-        team.round2Phase = 'done';
-        team.layer = 3;
+        team.round2ArticlesPhase = 'done';
+        team.layer = Math.max(team.layer || 1, 3);
         saveTeams(teams);
         return res.end(JSON.stringify({
           ok: true,
           correct: true,
-          digit: GAME_CONFIG.round2Digit,
+          digit: gameConfig.round2Digit,
           attemptsUsed: team.round2Attempts,
         }));
       }
 
       team.totalStrikes++;
-      team.penaltyUntil = Date.now() + GAME_CONFIG.round2Penalty * 1000;
+      team.penaltyUntil = Date.now() + gameConfig.round2Penalty * 1000;
       saveTeams(teams);
       return res.end(JSON.stringify({
         ok: true,
         correct: false,
-        penaltySeconds: GAME_CONFIG.round2Penalty,
+        penaltySeconds: gameConfig.round2Penalty,
         attemptsUsed: team.round2Attempts,
       }));
     }
 
-    // POST /api/submit-poster
+    // POST /api/submit-poster (Round 2 Poster)
     if (req.method === 'POST' && route === '/api/submit-poster') {
       const { teamName, posterGroup, answer } = data;
       const teams = loadTeams();
       const team = teams[teamName] ? getOrCreateTeam(teamName, teams) : null;
       if (!team) return res.end(JSON.stringify({ ok: false, error: 'Team not found' }));
 
-      if (team.round2Phase !== 'done')
-        return res.end(JSON.stringify({ ok: false, error: 'Complete Round 2.1 first' }));
+      const round2Order = getRound2Order(team.name, assignments);
+      if (round2Order === 'articles-first' && team.round2ArticlesPhase !== 'done')
+        return res.end(JSON.stringify({ ok: false, error: 'Complete Round 2 Articles first' }));
 
-      if (team.round2bPhase === 'done')
+      if (team.round2PosterPhase === 'done')
         return res.end(JSON.stringify({ ok: true, correct: true, alreadySolved: true }));
 
       if (isPenalized(team)) {
@@ -527,20 +582,20 @@ function handleAPI(req, res, parsedUrl) {
       }
 
       const pg = Number.parseInt(posterGroup, 10);
-      const groupConfig = GAME_CONFIG.posterGroups[pg];
+      const groupConfig = gameConfig.posterGroups && gameConfig.posterGroups[String(pg)];
       if (!groupConfig)
         return res.end(JSON.stringify({ ok: false, error: 'Invalid group' }));
 
-      if (team.group && team.group !== pg)
+      if (team.posterGroup && team.posterGroup !== pg)
         return res.end(JSON.stringify({ ok: false, error: 'Wrong group poster' }));
 
-      team.round2bPhase = 'puzzle';
+      team.round2PosterPhase = 'puzzle';
       const normalizedAnswer = String(answer || '').trim().toUpperCase();
       const correct = normalizedAnswer === groupConfig.answer.toUpperCase();
 
       if (correct) {
-        team.round2bPhase = 'done';
-        team.layer = Math.max(team.layer || 1, 3);
+        team.round2PosterPhase = 'done';
+        team.layer = Math.max(team.layer || 1, 4);
         saveTeams(teams);
         return res.end(JSON.stringify({ ok: true, correct: true }));
       }
@@ -583,13 +638,17 @@ const server = http.createServer((req, res) => {
   if (pathname.startsWith('/api/')) return handleAPI(req, res, parsedUrl);
 
   const routes = {
-    '/': 'index.html', '/play': 'index.html',
-    '/leaderboard': 'leaderboard.html', '/admin': 'admin.html',
-    '/round2': 'round2.html',
-    '/poster/1': 'poster.html',
-    '/poster/2': 'poster.html',
-    '/poster/3': 'poster.html',
-    '/poster/4': 'poster.html',
+    '/': 'round1/index.html', '/play': 'round1/index.html', '/round1': 'round1/index.html',
+    '/leaderboard': 'leaderboard/index.html', '/admin': 'admin/index.html',
+    '/round2': 'round2/articles.html', '/round2/articles': 'round2/articles.html',
+    '/round2/poster/1': 'round2/poster.html',
+    '/round2/poster/2': 'round2/poster.html',
+    '/round2/poster/3': 'round2/poster.html',
+    '/round2/poster/4': 'round2/poster.html',
+    '/poster/1': 'round2/poster.html',
+    '/poster/2': 'round2/poster.html',
+    '/poster/3': 'round2/poster.html',
+    '/poster/4': 'round2/poster.html',
   };
   const file = routes[pathname] || pathname.slice(1);
   serveStatic(req, res, path.join(__dirname, 'public', file));
@@ -598,7 +657,7 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n MATRIX ESCAPE SERVER ONLINE`);
   console.log(`   Player:   http://localhost:${PORT}`);
-  console.log(`   Round 2:  http://localhost:${PORT}/round2`);
+  console.log(`   Round 2:  http://localhost:${PORT}/round2/articles`);
   console.log(`   Admin:    http://localhost:${PORT}/admin`);
   console.log(`   Board:    http://localhost:${PORT}/leaderboard\n`);
 });
