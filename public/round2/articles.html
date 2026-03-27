@@ -157,28 +157,22 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
 
   <!-- ── POSTER INSTRUCTIONS (Group A/B see this first) ── -->
   <div id="phase-poster-instructions" class="card" style="display:none">
-    <div class="card-title">PHASE 1 — SIGNAL INTERCEPT <span style="font-size:11px;color:var(--dim);font-family:var(--mono);">// QR POSTER</span></div>
+    <div class="card-title">PHASE 1 — SIGNAL INTERCEPT</div>
     <div class="lore">
       Your first task is out in the field.<br>
-      A <span>QR poster</span> has been placed somewhere in the room.<br>
-      Near it you will find a <span>5‑letter access code</span>.<br>
-      Enter that code below to unlock the poster puzzle.
-    </div>
-    <div class="intro-rule">
-      <strong>// INSTRUCTIONS //</strong><br>
-      Locate the poster assigned to your group.<br>
-      Find the 5‑letter access code posted nearby.<br>
-      Enter it here to unlock the Caesar cipher puzzle.<br>
-      Once solved, return to complete <strong>Phase 2</strong>.
+      An agent left a data node somewhere in this corridor.<br>
+      But the system fought back — decoys are everywhere.<br>
+      One node is real. Scan it. Extract the name. Return.
     </div>
     <div id="poster-done-check" style="margin-top:8px;">
       <div class="answer-sub" style="margin-bottom:10px;">
-        Enter the 5-letter access code displayed near the QR poster.
+        Enter the name you extracted.
       </div>
-      <input type="text" id="poster-access-code" placeholder="ACCESS CODE" maxlength="5"
+      <input type="text" id="poster-access-code" placeholder="AGENT NAME" maxlength="20"
         style="text-transform:uppercase;letter-spacing:0.3em;text-align:center;" />
-      <button class="btn" style="margin-top:12px;" onclick="submitPosterAccess()">✓ UNLOCK POSTER</button>
+      <button class="btn" style="margin-top:12px;" onclick="submitPosterAccess()">✓ TRANSMIT</button>
       <div class="msg msg-err" id="poster-check-err" style="margin-top:10px;"></div>
+      <div class="msg msg-warn" id="poster-time-hint" style="margin-top:10px;"></div>
     </div>
   </div>
 
@@ -218,6 +212,7 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
 
     <!-- Article content swaps here -->
     <div id="article-body"></div>
+    <div class="msg msg-warn" id="articles-time-hint"></div>
 
     <div class="article-btn-row">
       <button class="btn" id="btn-prev" onclick="prevArticle()" style="display:none">◄ PREV</button>
@@ -233,6 +228,7 @@ input[type=text]::placeholder{color:rgba(0,255,65,0.25);}
       <span>ATTEMPTS: <span id="attempt-count">0</span> / ∞</span>
       <span id="hint-trigger" style="display:none;color:var(--amber);">HINT AVAILABLE ▼</span>
     </div>
+    <div class="msg msg-warn" id="articles-time-hint-answer"></div>
     <div class="hint-box" id="hint-box">
       💡 <strong>SIGNAL HINT:</strong> The real document contains exactly 3 <u>underlined words</u>.<br>
       Those are your signal fragments. Reverse each one. Submit all three separated by spaces.<br>
@@ -294,6 +290,10 @@ let currentArticle = 0;
 let visitedArticles = new Set();
 let attemptCount = 0;
 let penaltyIv = null;
+let articleHintTimers = [];
+let articleVisibleHints = [];
+let posterHintTimers = [];
+let posterVisibleHints = [];
 const HINT_THRESHOLD = 15;
 
 // ── Article content ───────────────────────────────────────────────────────────
@@ -409,9 +409,106 @@ if (denimArticle) {
 function showPhase(p) {
   ['locked','register','poster-instructions','intro','articles','answer','done'].forEach(x =>
     document.getElementById('phase-'+x).style.display = x===p ? '' : 'none');
+  if (p !== 'articles' && p !== 'answer') clearArticleHints();
+  if (p !== 'poster-instructions') clearPosterHints();
 }
 function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
 function clearMsg(id){const e=document.getElementById(id);e.textContent='';e.classList.remove('show');}
+
+function clearArticleHintUI() {
+  clearMsg('articles-time-hint');
+  clearMsg('articles-time-hint-answer');
+}
+
+function clearArticleHints() {
+  articleHintTimers.forEach(clearTimeout);
+  articleHintTimers = [];
+  articleVisibleHints = [];
+  clearArticleHintUI();
+}
+
+function renderArticleHints() {
+  if (!articleVisibleHints.length) {
+    clearArticleHintUI();
+    return;
+  }
+  const text = articleVisibleHints
+    .map(h => `HINT ${h.number}: ${h.text}`)
+    .join(' | ');
+  showMsg('articles-time-hint', text);
+  showMsg('articles-time-hint-answer', text);
+}
+
+function applyArticleHints(hintState) {
+  clearArticleHints();
+  if (!hintState) return;
+
+  articleVisibleHints = Array.isArray(hintState.unlockedHints)
+    ? [...hintState.unlockedHints]
+    : [];
+  articleVisibleHints.sort((a, b) => a.number - b.number);
+  renderArticleHints();
+
+  const pendingHints = Array.isArray(hintState.pendingHints)
+    ? hintState.pendingHints
+    : [];
+  pendingHints.forEach(hint => {
+    if (!hint || !hint.text || hint.remainingSeconds <= 0) return;
+    const timerId = setTimeout(() => {
+      const isActivePhase =
+        document.getElementById('phase-articles').style.display !== 'none' ||
+        document.getElementById('phase-answer').style.display !== 'none';
+      if (!isActivePhase) return;
+      articleVisibleHints.push({ number: hint.number, text: hint.text });
+      articleVisibleHints.sort((a, b) => a.number - b.number);
+      renderArticleHints();
+    }, hint.remainingSeconds * 1000);
+    articleHintTimers.push(timerId);
+  });
+}
+
+function clearPosterHints() {
+  posterHintTimers.forEach(clearTimeout);
+  posterHintTimers = [];
+  posterVisibleHints = [];
+  clearMsg('poster-time-hint');
+}
+
+function renderPosterHints() {
+  if (!posterVisibleHints.length) {
+    clearMsg('poster-time-hint');
+    return;
+  }
+  const text = posterVisibleHints
+    .map(h => `HINT ${h.number}: ${h.text}`)
+    .join(' | ');
+  showMsg('poster-time-hint', text);
+}
+
+function applyPosterHints(hintState) {
+  clearPosterHints();
+  if (!hintState) return;
+
+  posterVisibleHints = Array.isArray(hintState.unlockedHints)
+    ? [...hintState.unlockedHints]
+    : [];
+  posterVisibleHints.sort((a, b) => a.number - b.number);
+  renderPosterHints();
+
+  const pendingHints = Array.isArray(hintState.pendingHints)
+    ? hintState.pendingHints
+    : [];
+  pendingHints.forEach(hint => {
+    if (!hint || !hint.text || hint.remainingSeconds <= 0) return;
+    const timerId = setTimeout(() => {
+      if (document.getElementById('phase-poster-instructions').style.display === 'none') return;
+      posterVisibleHints.push({ number: hint.number, text: hint.text });
+      posterVisibleHints.sort((a, b) => a.number - b.number);
+      renderPosterHints();
+    }, hint.remainingSeconds * 1000);
+    posterHintTimers.push(timerId);
+  });
+}
 
 // ── Lab countdown ─────────────────────────────────────────────────────────────
 // ── Article rendering ─────────────────────────────────────────────────────────
@@ -471,13 +568,13 @@ function renderArticle(idx) {
 function updateDoneState(state) {
   const next = document.getElementById('r2-next-step');
   if (!state || !state.ok) {
-    next.textContent = 'Await instructions.';
+    next.textContent = 'Collect Round 3 breif from commity member';
     return;
   }
   if (state.round2PosterPhase !== 'done') {
     next.textContent = 'Proceed to the QR poster to complete Round 2.';
   } else {
-    next.textContent = 'Round 2 complete. Await instructions.';
+    next.textContent = 'Collect Round 3 breif from commity member';
   }
 }
 
@@ -488,7 +585,18 @@ function prevArticle() {
   if (currentArticle > 0) renderArticle(currentArticle - 1);
 }
 function goToArticle(idx) { renderArticle(idx); }
-function startArticles() { showPhase('articles'); renderArticle(0); }
+async function startArticles() {
+  try {
+    const r = await fetch('/api/round2-enter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamName })
+    }).then(x => x.json());
+    if (r && r.ok) applyArticleHints(r.round2ArticlesHint);
+  } catch {}
+  showPhase('articles');
+  renderArticle(0);
+}
 
 // ── Answer submission ─────────────────────────────────────────────────────────
 async function submitAnswer() {
@@ -515,6 +623,7 @@ async function submitAnswer() {
 
   if (r.correct) {
     showMsg('ans-ok', '✓ SIGNAL VERIFIED — decoding complete...');
+    clearArticleHints();
     setTimeout(async () => {
       document.getElementById('r2-digit-display').textContent =
         r.digit ? `YOUR DIGIT: ${r.digit}` : '';
@@ -587,8 +696,8 @@ async function submitPosterAccess() {
   const e = document.getElementById('poster-check-err');
   e.textContent = '';
   e.classList.remove('show');
-  if (!code || code.length !== 5) {
-    e.textContent = 'Enter the 5-letter access code.';
+  if (!code) {
+    e.textContent = 'Enter the extracted name.';
     e.classList.add('show');
     return;
   }
@@ -625,6 +734,8 @@ async function init() {
     .then(x => x.json()).catch(() => null);
 
   if (state && state.ok) {
+    applyArticleHints(state.round2ArticlesHint);
+    applyPosterHints(state.round2PosterHint);
     if (state.round1Phase !== 'done') {
       showPhase('locked');
       return;
@@ -633,6 +744,7 @@ async function init() {
 
     // Round 2 articles already done
     if (state.round2ArticlesPhase === 'done') {
+      clearArticleHints();
       if (state.round2PosterPhase !== 'done') {
         showPhase('poster-instructions');
         return;

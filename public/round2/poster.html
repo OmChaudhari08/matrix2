@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>ESCAPE THE MATRIX — SIGNAL INTERCEPT</title>
+<title>ESCAPE THE MATRIX â€” SIGNAL INTERCEPT</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700;900&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -69,6 +69,7 @@ input[type=text]:disabled{opacity:0.4;}
 .msg.show{display:block;}
 .msg-err{background:rgba(255,34,68,0.1);border:1px solid rgba(255,34,68,0.3);color:var(--red);}
 .msg-ok{background:rgba(0,255,65,0.1);border:1px solid rgba(0,255,65,0.3);color:var(--green);}
+.msg-warn{background:rgba(255,179,0,0.1);border:1px solid rgba(255,179,0,0.3);color:var(--amber);}
 
 /* penalty */
 #pen-block{text-align:center;padding:14px 0;display:none;}
@@ -97,14 +98,14 @@ input[type=text]:disabled{opacity:0.4;}
 <div id="app">
 
   <div style="text-align:center;border-bottom:1px solid var(--border);padding-bottom:16px;">
-    <div style="font-family:var(--display);font-size:26px;font-weight:900;letter-spacing:0.12em;text-shadow:0 0 24px rgba(0,255,65,0.5);">⬡ ESCAPE THE MATRIX</div>
-    <div style="font-size:11px;color:var(--dim);letter-spacing:0.3em;margin-top:6px;">// ROUND 2.2 — SIGNAL INTERCEPT //</div>
-    <div style="margin-top:8px;font-size:12px;color:var(--dim);">OPERATOR: <span id="team-name-disp" style="color:var(--green);font-weight:bold;">—</span></div>
+    <div style="font-family:var(--display);font-size:26px;font-weight:900;letter-spacing:0.12em;text-shadow:0 0 24px rgba(0,255,65,0.5);">â¬¡ ESCAPE THE MATRIX</div>
+    <div style="font-size:11px;color:var(--dim);letter-spacing:0.3em;margin-top:6px;">// ROUND 2.2 â€” SIGNAL INTERCEPT //</div>
+    <div style="margin-top:8px;font-size:12px;color:var(--dim);">OPERATOR: <span id="team-name-disp" style="color:var(--green);font-weight:bold;">â€”</span></div>
   </div>
 
   <!-- WRONG GROUP -->
   <div id="phase-wrong" class="card" style="display:none">
-    <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--red);margin-bottom:12px;">⚠ WRONG FREQUENCY</div>
+    <div style="font-family:var(--display);font-size:20px;font-weight:700;color:var(--red);margin-bottom:12px;">âš  WRONG FREQUENCY</div>
     <div class="lore">
       This signal is not meant for your group.<br>
       Your frequency is <span id="correct-group-label">GROUP ?</span>.<br>
@@ -120,7 +121,7 @@ input[type=text]:disabled{opacity:0.4;}
     </div>
     <div class="lore">
       Your frequency is locked. A message was intercepted from a Machine relay node.<br>
-      It has been <span>Caesar-encrypted</span> — each letter shifted by a fixed key.<br>
+      It has been <span>Caesar-encrypted</span> â€” each letter shifted by a fixed key.<br>
       Decrypt it. The answer is a single word. Submit it below.
     </div>
 
@@ -128,7 +129,13 @@ input[type=text]:disabled{opacity:0.4;}
       <strong>// CIPHER RULE //</strong><br>
       Each letter in the message has been shifted forward in the alphabet by a fixed number.<br>
       To decrypt: shift each letter <strong>backwards</strong> by the same amount.<br>
-      Example (shift 3): <strong>D → A &nbsp; E → B &nbsp; F → C</strong><br>
+      <strong>// ALPHABET KEY //</strong><br>
+      A=1 &nbsp; B=2 &nbsp; C=3 &nbsp; D=4 &nbsp; E=5 &nbsp; F=6 &nbsp; G=7 &nbsp; H=8 &nbsp; I=9 &nbsp; J=10 &nbsp; K=11 &nbsp; L=12 &nbsp; M=13<br>
+      N=14 &nbsp; O=15 &nbsp; P=16 &nbsp; Q=17 &nbsp; R=18 &nbsp; S=19 &nbsp; T=20 &nbsp; U=21 &nbsp; V=22 &nbsp; W=23 &nbsp; X=24 &nbsp; Y=25 &nbsp; Z=26<br>
+      <strong>// EXAMPLE (SHIFT 3) //</strong><br>
+      Encrypted letter: K<br>
+      K = 11 &nbsp; 11 - 3 = 8 &nbsp; 8 = H<br>
+      Decrypted: H<br>
       Numbers, spaces, and punctuation are unchanged.
       <div style="margin-top:8px;">
         <strong>// SHIFT KEY //</strong> <span id="shift-key">?</span>
@@ -136,16 +143,17 @@ input[type=text]:disabled{opacity:0.4;}
     </div>
 
     <div class="cipher-label">// ENCRYPTED TRANSMISSION //</div>
-    <div class="cipher-block" id="cipher-text">—</div>
+    <div class="cipher-block" id="cipher-text">â€”</div>
 
     <div class="attempts-row">ATTEMPTS: <span id="attempt-count">0</span></div>
+    <div class="msg msg-warn" id="poster-hint"></div>
 
     <input type="text" id="answer-input" placeholder="Enter decrypted answer..."
       maxlength="30" onkeydown="if(event.key==='Enter')submitAnswer()"/>
 
     <div id="pen-block">
       <div class="pen-num" id="pen-timer">60</div>
-      <div class="pen-label">SECOND PENALTY — WAIT</div>
+      <div class="pen-label">SECOND PENALTY â€” WAIT</div>
     </div>
 
     <button class="btn" id="submit-btn" onclick="submitAnswer()">TRANSMIT DECRYPTION</button>
@@ -156,7 +164,7 @@ input[type=text]:disabled{opacity:0.4;}
   <!-- DONE -->
   <div id="phase-done" class="card" style="display:none">
     <div class="done-box">
-      <div class="done-big">SIGNAL DECRYPTED<br>✓ ACCESS GRANTED</div>
+      <div class="done-big">SIGNAL DECRYPTED<br>âœ“ ACCESS GRANTED</div>
       <div class="done-sub">
         Round 2.2 complete.<br>
         Proceed to <span style="color:var(--green);font-weight:bold;">ROUND 3</span>.<br>
@@ -168,10 +176,10 @@ input[type=text]:disabled{opacity:0.4;}
 </div>
 
 <script>
-// ── Rain ──────────────────────────────────────────────────────────
+// â”€â”€ Rain â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (function(){
   const c=document.getElementById('rain'),ctx=c.getContext('2d');
-  const chars='アイウエオ0123456789ABCDEF';let d=[];
+  const chars='ã‚¢ã‚¤ã‚¦ã‚¨ã‚ª0123456789ABCDEF';let d=[];
   function r(){c.width=innerWidth;c.height=innerHeight;
     d=Array.from({length:Math.floor(innerWidth/18)},()=>Math.random()*-80);}
   r();addEventListener('resize',r);
@@ -182,7 +190,7 @@ input[type=text]:disabled{opacity:0.4;}
       ctx.globalAlpha=1;if(y*16>c.height&&Math.random()>0.975)d[i]=0;else d[i]++;});},60);
 })();
 
-// ── State ─────────────────────────────────────────────────────────
+// â”€â”€ State â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const teamName   = localStorage.getItem('matrixTeam') || 'UNKNOWN';
 let teamPosterGroup = parseInt(localStorage.getItem('matrixPosterGroup') || localStorage.getItem('matrixGroup') || '0');
 // posterGroup = which poster was scanned (from URL path /poster/1 etc)
@@ -192,14 +200,55 @@ document.getElementById('team-name-disp').textContent = teamName;
 
 let attemptCount = 0;
 let penaltyIv    = null;
+let posterHintTimers = [];
+let posterVisibleHints = [];
 
-// ── Helpers ───────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function showPhase(p) {
   ['wrong','puzzle','done'].forEach(x =>
     document.getElementById('phase-'+x).style.display = x===p ? '' : 'none');
+  if (p !== 'puzzle') clearPosterHint();
 }
 function showMsg(id,txt){const e=document.getElementById(id);e.textContent=txt;e.classList.add('show');}
 function clearMsg(id){const e=document.getElementById(id);e.textContent='';e.classList.remove('show');}
+
+function clearPosterHint() {
+  posterHintTimers.forEach(clearTimeout);
+  posterHintTimers = [];
+  posterVisibleHints = [];
+  clearMsg('poster-hint');
+}
+
+function renderPosterHint() {
+  if (!posterVisibleHints.length) {
+    clearMsg('poster-hint');
+    return;
+  }
+  showMsg('poster-hint', posterVisibleHints.map(h => `HINT ${h.number}: ${h.text}`).join(' | '));
+}
+
+function applyPosterHint(hintState) {
+  clearPosterHint();
+  if (!hintState) return;
+
+  posterVisibleHints = Array.isArray(hintState.unlockedHints)
+    ? [...hintState.unlockedHints]
+    : [];
+  posterVisibleHints.sort((a, b) => a.number - b.number);
+  renderPosterHint();
+
+  const pendingHints = Array.isArray(hintState.pendingHints) ? hintState.pendingHints : [];
+  pendingHints.forEach(hint => {
+    if (!hint || !hint.text || hint.remainingSeconds <= 0) return;
+    const timerId = setTimeout(() => {
+      if (document.getElementById('phase-puzzle').style.display === 'none') return;
+      posterVisibleHints.push({ number: hint.number, text: hint.text });
+      posterVisibleHints.sort((a, b) => a.number - b.number);
+      renderPosterHint();
+    }, hint.remainingSeconds * 1000);
+    posterHintTimers.push(timerId);
+  });
+}
 
 function startPenalty(sec) {
   const blk=document.getElementById('pen-block'),tmr=document.getElementById('pen-timer');
@@ -213,7 +262,7 @@ function startPenalty(sec) {
   },1000);
 }
 
-// ── Submit ────────────────────────────────────────────────────────
+// â”€â”€ Submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function submitAnswer() {
   const raw = document.getElementById('answer-input').value.trim().toUpperCase();
   clearMsg('ans-err'); clearMsg('ans-ok');
@@ -227,7 +276,7 @@ async function submitAnswer() {
   if (r.penalized) { startPenalty(r.remaining); return; }
   if (!r.ok) {
     if (r.error === 'Wrong group poster') {
-      document.getElementById('correct-group-label').textContent = teamGroup ? `GROUP ${teamGroup}` : 'YOUR ASSIGNED GROUP';
+      document.getElementById('correct-group-label').textContent = teamPosterGroup ? `GROUP ${teamPosterGroup}` : 'YOUR ASSIGNED GROUP';
       showPhase('wrong');
       return;
     }
@@ -239,17 +288,18 @@ async function submitAnswer() {
   document.getElementById('attempt-count').textContent = attemptCount;
 
   if (r.correct) {
-    showMsg('ans-ok','✓ DECRYPTION VERIFIED');
+    showMsg('ans-ok','âœ“ DECRYPTION VERIFIED');
+    clearPosterHint();
     setTimeout(() => {
       window.location.href = '/round2/articles';
     }, 800);
   } else {
-    showMsg('ans-err','✗ WRONG DECRYPTION. Check your shift and try again.');
+    showMsg('ans-err','âœ— WRONG DECRYPTION. Check your shift and try again.');
     if (r.penaltySeconds) startPenalty(r.penaltySeconds);
   }
 }
 
-// ── Init ──────────────────────────────────────────────────────────
+// â”€â”€ Init â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 (async function init() {
   if (!posterGroup) {
     showPhase('wrong');
@@ -268,6 +318,7 @@ async function submitAnswer() {
     if (state.round2PosterPhase === 'done') {
       showPhase('done'); return;
     }
+    applyPosterHint(state.round2PosterHint);
   }
 
   // Check if team is scanning the right poster
@@ -278,7 +329,7 @@ async function submitAnswer() {
   }
 
   // Load poster config
-  const cfg = await fetch(`/api/poster-config?group=${posterGroup}`)
+  const cfg = await fetch(`/api/poster-config?group=${posterGroup}&team=${encodeURIComponent(teamName)}`)
     .then(x => x.json()).catch(() => null);
   if (!cfg || !cfg.ok || !cfg.group) {
     showPhase('wrong');
@@ -286,8 +337,9 @@ async function submitAnswer() {
   }
 
   document.getElementById('group-badge').textContent = cfg.group.label || `GROUP ${posterGroup}`;
-  document.getElementById('cipher-text').textContent = cfg.group.message || '—';
+  document.getElementById('cipher-text').textContent = cfg.group.message || 'â€”';
   document.getElementById('shift-key').textContent = String(cfg.group.shift || 0);
+  applyPosterHint(cfg.posterHint);
   showPhase('puzzle');
 })();
 

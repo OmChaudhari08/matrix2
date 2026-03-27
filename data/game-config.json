@@ -13,35 +13,45 @@
       "shift": 3,
       "answer": "ORACLE",
       "penalty": 60,
-      "message": "WKH WUXWK LV QRW IRXQG — LW LV UHPHPEHUHG. FRQWDFW: RUDOFH"
+      "message": "RUDOFH"
     },
     "2": {
       "label": "GROUP 2",
       "shift": 7,
       "answer": "ZION",
       "penalty": 60,
-      "message": "AOL SHZA OPKPUN WSHZL VM AOL MYLL. KLZAPUHAPVU: GPVU"
+      "message": "GPVU"
     },
     "3": {
       "label": "GROUP 3",
       "shift": 13,
       "answer": "NEBUCHADNEZZAR",
       "penalty": 60,
-      "message": "GUR FUVB GUNG PNEEVRF GUR PUBFRA. NZFV PNYY FVTA: ARHPUNQARMMNE"
+      "message": "ARHPUNQARMMNE"
     },
     "4": {
       "label": "GROUP 4",
       "shift": 21,
       "answer": "MORPHEUS",
       "penalty": 60,
-      "message": "OCZ JGYZNO WZGDZMZM JA OCZ OMPON. XJIIPIDXVOZ RDOC: HJMKCZPN"
+      "message": "HJMKCZPN"
     }
   },
   "hints": {
     "round1Audio": [
-      { "delaySeconds": 300, "text": "<3" },
-      { "delaySeconds": 180, "text": "TODO: add the second Round 1 hint." },
-      { "delaySeconds": 120, "text": "TODO: add the third Round 1 hint." }
+      { "delaySeconds": 180, "text": "<3" },
+      { "delaySeconds": 120, "text": "Answer is in front of You" },
+      { "delaySeconds": 120, "text": "Trimurti" }
+    ],
+    "round2Poster": [
+      { "delaySeconds": 180, "text": "Signal = Qr" },
+      { "delaySeconds": 180, "text": "Qr will give the Text like AGENT" },
+      { "delaySeconds": 120, "text": "Your prayer will be answered ( Notice board )" }
+    ],
+    "round2Articles": [
+      { "delaySeconds": 300, "text": "Cloths" },
+      { "delaySeconds": 180, "text": "AGENT IS ENEMY " },
+      { "delaySeconds": 120, "text": "Word are not the same" }
     ]
   }
 }

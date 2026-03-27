@@ -27,12 +27,12 @@ const DEFAULT_GAME_CONFIG = {
   round2Penalty: 60,
   round2Digit: '7',
   posterGroups: {},
-  hints: { round1Audio: [] },
+  hints: { round1Audio: [], round2Poster: [], round2Articles: [] },
 };
 
 const DEFAULT_ASSIGNMENTS = {
   teams: {},
-  fallback: { flowGroup: 'A', posterGroup: 0 },
+  fallback: { flowGroup: 'A', posterGroup: 0, lab: 'LAB', pc: 'PC' },
 };
 
 function readJsonSafe(filePath, fallback) {
@@ -101,10 +101,14 @@ function getSeat(teamName, assignments) {
   const fallback = assignments.fallback || DEFAULT_ASSIGNMENTS.fallback;
   const team = (assignments.teams && assignments.teams[teamName]) || null;
   const round2Order = normalizeRound2Order(team && team.round2Order);
+  const lab = (team && team.lab) ? String(team.lab) : String(fallback.lab || 'LAB');
+  const pc = (team && team.pc) ? String(team.pc) : String(fallback.pc || 'PC');
   return {
     flowGroup: normalizeFlowGroup(team && team.flowGroup, fallback.flowGroup),
     posterGroup: normalizePosterGroup(team && team.posterGroup),
     qrCode: team && team.qrCode ? String(team.qrCode) : '',
+    lab,
+    pc,
     round2Order,
   };
 }
@@ -118,7 +122,10 @@ function getRound2Order(teamName, assignments) {
 }
 
 function getLabReveal(teamName, assignments, gameConfig) {
+  const seat = getSeat(teamName, assignments);
   return {
+    lab: seat.lab || 'LAB',
+    pc: seat.pc || 'PC',
     instruction: gameConfig.labInstruction || 'Proceed to the lab.',
   };
 }
@@ -157,7 +164,9 @@ function getOrCreateTeam(teamName, teams) {
       round1Phase: 'waiting',  // waiting | audio | wordle | done
       round1AudioStartedAt: null,
       round2ArticlesPhase: 'locked', // locked | articles | answer | done
+      round2ArticlesStartedAt: null,
       round2PosterPhase: 'locked',   // locked | puzzle | done
+      round2PosterStartedAt: null,
       round2Attempts: 0,
       audioSolvedAt: null,
       wordleGuesses: [],
@@ -213,6 +222,16 @@ function getOrCreateTeam(teamName, teams) {
     changed = true;
   }
 
+  if (!Object.prototype.hasOwnProperty.call(team, 'round2ArticlesStartedAt')) {
+    team.round2ArticlesStartedAt = null;
+    changed = true;
+  }
+
+  if (!Object.prototype.hasOwnProperty.call(team, 'round2PosterStartedAt')) {
+    team.round2PosterStartedAt = null;
+    changed = true;
+  }
+
   if (changed) saveTeams(teams);
   return team;
 }
@@ -228,6 +247,18 @@ function normalizeAnswer(input) {
 function ensureRound1AudioStarted(team) {
   if (team.round1AudioStartedAt) return false;
   team.round1AudioStartedAt = Date.now();
+  return true;
+}
+
+function ensureRound2PosterStarted(team) {
+  if (team.round2PosterStartedAt) return false;
+  team.round2PosterStartedAt = Date.now();
+  return true;
+}
+
+function ensureRound2ArticlesStarted(team) {
+  if (team.round2ArticlesStartedAt) return false;
+  team.round2ArticlesStartedAt = Date.now();
   return true;
 }
 
@@ -262,6 +293,128 @@ function getRound1AudioHintState(team, gameConfig) {
   }
 
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - team.round1AudioStartedAt) / 1000));
+  const unlockedHints = [];
+  const pendingHints = [];
+
+  hintSteps.forEach(hint => {
+    if (elapsedSeconds >= hint.unlockAfterSeconds) {
+      unlockedHints.push({ number: hint.number, text: hint.text });
+    } else {
+      pendingHints.push({
+        number: hint.number,
+        text: hint.text,
+        remainingSeconds: hint.unlockAfterSeconds - elapsedSeconds,
+      });
+    }
+  });
+
+  return {
+    totalHints: hintSteps.length,
+    unlockedHints,
+    pendingHints,
+  };
+}
+
+function getRound2PosterHintState(team, gameConfig) {
+  const hintConfig = Array.isArray(gameConfig.hints && gameConfig.hints.round2Poster)
+    ? gameConfig.hints.round2Poster
+    : [];
+
+  let unlockAfterSeconds = 0;
+  const hintSteps = hintConfig
+    .map((step, index) => {
+      const delaySeconds = Math.max(0, Number.parseInt(step.delaySeconds, 10) || 0);
+      const text = String(step.text || '').trim();
+      unlockAfterSeconds += delaySeconds;
+      if (!text) return null;
+      return { number: index + 1, text, unlockAfterSeconds };
+    })
+    .filter(Boolean);
+
+  if (!hintSteps.length) return null;
+
+  if (team.round2PosterPhase === 'done') {
+    return {
+      totalHints: hintSteps.length,
+      unlockedHints: hintSteps.map(hint => ({ number: hint.number, text: hint.text })),
+      pendingHints: [],
+    };
+  }
+
+  if (!team.round2PosterStartedAt) {
+    return {
+      totalHints: hintSteps.length,
+      unlockedHints: [],
+      pendingHints: hintSteps.map(hint => ({
+        number: hint.number,
+        text: hint.text,
+        remainingSeconds: hint.unlockAfterSeconds,
+      })),
+    };
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - team.round2PosterStartedAt) / 1000));
+  const unlockedHints = [];
+  const pendingHints = [];
+
+  hintSteps.forEach(hint => {
+    if (elapsedSeconds >= hint.unlockAfterSeconds) {
+      unlockedHints.push({ number: hint.number, text: hint.text });
+    } else {
+      pendingHints.push({
+        number: hint.number,
+        text: hint.text,
+        remainingSeconds: hint.unlockAfterSeconds - elapsedSeconds,
+      });
+    }
+  });
+
+  return {
+    totalHints: hintSteps.length,
+    unlockedHints,
+    pendingHints,
+  };
+}
+
+function getRound2ArticlesHintState(team, gameConfig) {
+  const hintConfig = Array.isArray(gameConfig.hints && gameConfig.hints.round2Articles)
+    ? gameConfig.hints.round2Articles
+    : [];
+
+  let unlockAfterSeconds = 0;
+  const hintSteps = hintConfig
+    .map((step, index) => {
+      const delaySeconds = Math.max(0, Number.parseInt(step.delaySeconds, 10) || 0);
+      const text = String(step.text || '').trim();
+      unlockAfterSeconds += delaySeconds;
+      if (!text) return null;
+      return { number: index + 1, text, unlockAfterSeconds };
+    })
+    .filter(Boolean);
+
+  if (!hintSteps.length) return null;
+
+  if (team.round2ArticlesPhase === 'done') {
+    return {
+      totalHints: hintSteps.length,
+      unlockedHints: hintSteps.map(hint => ({ number: hint.number, text: hint.text })),
+      pendingHints: [],
+    };
+  }
+
+  if (!team.round2ArticlesStartedAt) {
+    return {
+      totalHints: hintSteps.length,
+      unlockedHints: [],
+      pendingHints: hintSteps.map(hint => ({
+        number: hint.number,
+        text: hint.text,
+        remainingSeconds: hint.unlockAfterSeconds,
+      })),
+    };
+  }
+
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - team.round2ArticlesStartedAt) / 1000));
   const unlockedHints = [];
   const pendingHints = [];
 
@@ -362,6 +515,17 @@ function handleAPI(req, res, parsedUrl) {
       const team = teams[teamName] ? getOrCreateTeam(teamName, teams) : null;
       if (!team) return res.end(JSON.stringify({ ok: false, error: 'Not found' }));
       if (team.round1Phase === 'audio' && ensureRound1AudioStarted(team)) saveTeams(teams);
+      if ((team.round2ArticlesPhase === 'articles' || team.round2ArticlesPhase === 'answer') && ensureRound2ArticlesStarted(team)) {
+        saveTeams(teams);
+      }
+      const round2Order = getRound2Order(team.name, assignments);
+      const canStartPosterHints =
+        team.round1Phase === 'done' &&
+        team.round2PosterPhase !== 'done' &&
+        (round2Order === 'poster-first' || team.round2ArticlesPhase === 'done');
+      if (canStartPosterHints && ensureRound2PosterStarted(team)) {
+        saveTeams(teams);
+      }
       if (team.wordleIndex == null && wordleWords.length) {
         team.wordleIndex = getTeamWordleIndex(team, team.name, wordleWords);
         saveTeams(teams);
@@ -375,7 +539,9 @@ function handleAPI(req, res, parsedUrl) {
         round1Phase: team.round1Phase,
         round1AudioHint: getRound1AudioHintState(team, gameConfig),
         round2ArticlesPhase: team.round2ArticlesPhase || 'locked',
+        round2ArticlesHint: getRound2ArticlesHintState(team, gameConfig),
         round2PosterPhase: team.round2PosterPhase || 'locked',
+        round2PosterHint: getRound2PosterHintState(team, gameConfig),
         round2Attempts: team.round2Attempts || 0,
         round2Digit: (team.round2ArticlesPhase || 'locked') === 'done' ? gameConfig.round2Digit : null,
         wordleGuesses: team.wordleGuesses || [],
@@ -390,6 +556,16 @@ function handleAPI(req, res, parsedUrl) {
       const pg = Number.parseInt(parsedUrl.query.group, 10);
       const groupConfig = gameConfig.posterGroups && gameConfig.posterGroups[String(pg)];
       if (!groupConfig) return res.end(JSON.stringify({ ok: false, error: 'Invalid group' }));
+      const teamName = String(parsedUrl.query.team || '').trim().toUpperCase();
+      let posterHint = null;
+      if (teamName) {
+        const teams = loadTeams();
+        const team = teams[teamName] ? getOrCreateTeam(teamName, teams) : null;
+        if (team && team.round1Phase === 'done') {
+          if (ensureRound2PosterStarted(team)) saveTeams(teams);
+          posterHint = getRound2PosterHintState(team, gameConfig);
+        }
+      }
       return res.end(JSON.stringify({
         ok: true,
         group: {
@@ -397,6 +573,7 @@ function handleAPI(req, res, parsedUrl) {
           shift: groupConfig.shift || 0,
           message: groupConfig.message || '',
         },
+        posterHint,
       }));
     }
 
@@ -539,14 +716,22 @@ function handleAPI(req, res, parsedUrl) {
       if (team.round1Phase !== 'done')
         return res.end(JSON.stringify({ ok: false, error: 'Complete Round 1 first' }));
 
+      let changed = false;
       if ((team.round2ArticlesPhase || 'locked') === 'locked') {
         team.round2ArticlesPhase = 'articles';
+        changed = true;
+      }
+      if (ensureRound2ArticlesStarted(team)) {
+        changed = true;
+      }
+      if (changed) {
         saveTeams(teams);
       }
 
       return res.end(JSON.stringify({
         ok: true,
         round2ArticlesPhase: team.round2ArticlesPhase || 'locked',
+        round2ArticlesHint: getRound2ArticlesHintState(team, gameConfig),
         round2Attempts: team.round2Attempts || 0,
         round2Digit: (team.round2ArticlesPhase || 'locked') === 'done' ? gameConfig.round2Digit : null,
         flowGroup: getSeat(team.name, assignments).flowGroup || 'A',
@@ -582,6 +767,7 @@ function handleAPI(req, res, parsedUrl) {
         }));
       }
 
+      ensureRound2ArticlesStarted(team);
       team.round2ArticlesPhase = 'answer';
       team.round2Attempts = (team.round2Attempts || 0) + 1;
 
@@ -638,9 +824,12 @@ function handleAPI(req, res, parsedUrl) {
         return res.end(JSON.stringify({ ok: false, error: 'Invalid code', penaltySeconds: 30 }));
       }
 
+      if (ensureRound2PosterStarted(team)) saveTeams(teams);
+
       return res.end(JSON.stringify({
         ok: true,
         posterGroup: seat.posterGroup || 0,
+        posterHint: getRound2PosterHintState(team, gameConfig),
       }));
     }
 

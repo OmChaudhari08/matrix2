@@ -900,8 +900,11 @@
       }
 
       function renderReveal(rev) {
+        const instruction =
+          (rev && typeof rev.instruction === 'string' && rev.instruction.trim()) ||
+          'Proceed to the lab for Round 2.';
         document.getElementById('reveal-box').innerHTML =
-          `<div class="reveal-big">ROUND 1 COMPLETE</div><div class="reveal-sub">NEXT: LAB</div><div style="margin-top:16px;font-size:12px;color:var(--dim);letter-spacing:0.12em;">${rev.instruction}</div>`;
+          `<div class="reveal-big">ROUND 1 COMPLETE</div><div class="reveal-sub">NEXT: LAB</div><div style="margin-top:16px;font-size:12px;color:var(--dim);letter-spacing:0.12em;">${instruction}</div>`;
       }
 
       async function fetchState() {

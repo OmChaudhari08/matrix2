@@ -1,26 +1,128 @@
 {
   "teams": {
-    "TEAM FEARLESS WARRIORS": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "FEARL" },
-    "TEAM HUNTERS": { "round2Order": "articles-first", "posterGroup": 2, "qrCode": "HUNTS" },
-    "TEAM 4JEZZ": { "round2Order": "poster-first", "posterGroup": 3, "qrCode": "JEZZY" },
-    "TEAM PIRATES": { "round2Order": "articles-first", "posterGroup": 4, "qrCode": "PIRAT" },
-    "TEAM INFINITY": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "INFIN" },
-    "TEAM HUNTER": { "round2Order": "articles-first", "posterGroup": 2, "qrCode": "HUNTR" },
-    "TEAM RED PILL CREW": { "round2Order": "poster-first", "posterGroup": 3, "qrCode": "REDPX" },
-    "TEAM TEAM_INCEPTION": { "round2Order": "articles-first", "posterGroup": 4, "qrCode": "INCPT" },
-    "TEAM THE LATE FINDERS": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "LATEF" },
-    "TEAM THE HIDDEN SEEKERS": { "round2Order": "articles-first", "posterGroup": 2, "qrCode": "HIDDN" },
-    "TEAM DORARA": { "round2Order": "poster-first", "posterGroup": 3, "qrCode": "DORAR" },
-    "TEAM THE FAB GIRLS": { "round2Order": "articles-first", "posterGroup": 4, "qrCode": "FABGR" },
-    "TEAM MYSTERY MASTERS": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "MYSTM" },
-    "TEAM TEAM PARA-DOX": { "round2Order": "articles-first", "posterGroup": 2, "qrCode": "PARAD" },
-    "TEAM FRIENDSHIP GOAL": { "round2Order": "poster-first", "posterGroup": 3, "qrCode": "FRNDG" },
-    "TEAM SILENT TEAM": { "round2Order": "articles-first", "posterGroup": 4, "qrCode": "SILNT" },
-    "TEAM NEO": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "NEONE" },
-    "TEAM RADIANTS": { "round2Order": "articles-first", "posterGroup": 2, "qrCode": "RADIN" },
-    "TEAM BLACK MOON": { "round2Order": "poster-first", "posterGroup": 3, "qrCode": "BLKMN" },
-    "TEAM HOG RIDAA": { "round2Order": "articles-first", "posterGroup": 4, "qrCode": "HOGRD" },
-    "TEAM DAGGER DUO": { "round2Order": "poster-first", "posterGroup": 1, "qrCode": "DAGGR" }
+    "TEAM FEARLESS WARRIORS": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM HUNTERS": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "NEO"
+    },
+    "TEAM 4JEZZ": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "ZION"
+    },
+    "TEAM PIRATES": {
+      "round2Order": "articles-first",
+      "posterGroup": 4,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM INFINITY": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "ZION"
+    },
+    "TEAM HUNTER": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "NEO"
+    },
+    "TEAM RED PILL CREW": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM TEAM_INCEPTION": {
+      "round2Order": "articles-first",
+      "posterGroup": 4,
+      "qrCode": "ZION"
+    },
+    "TEAM THE LATE FINDERS": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM THE HIDDEN SEEKERS": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "TRINITY"
+    },
+    "TEAM DORARA": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM THE FAB GIRLS": {
+      "round2Order": "articles-first",
+      "posterGroup": 4,
+      "qrCode": "ZION"
+    },
+    "TEAM MYSTERY MASTERS": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "TRINITY"
+    },
+    "TEAM TEAM PARA-DOX": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "TRINITY"
+    },
+    "TEAM FRIENDSHIP GOAL": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "ZION"
+    },
+    "TEAM SILENT TEAM": {
+      "round2Order": "articles-first",
+      "posterGroup": 4,
+      "qrCode": "TRINITY"
+    },
+    "TEAM NEO": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "NEO"
+    },
+    "TEAM RADIANTS": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "ZION"
+    },
+    "TEAM BLACK MOON": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "ZION"
+    },
+    "TEAM HOG RIDAA": {
+      "round2Order": "articles-first",
+      "posterGroup": 4,
+      "qrCode": "TRINITY"
+    },
+    "TEAM TEMP 1": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "NEO"
+    },
+    "TEAM TEMP 2": {
+      "round2Order": "articles-first",
+      "posterGroup": 2,
+      "qrCode": "MORPHUS"
+    },
+    "TEAM TEMP 3": {
+      "round2Order": "poster-first",
+      "posterGroup": 3,
+      "qrCode": "ZION"
+    },
+    "TEAM DAGGER DUO": {
+      "round2Order": "poster-first",
+      "posterGroup": 1,
+      "qrCode": "MORPHUS"
+    }
   },
-  "fallback": { "flowGroup": "A", "posterGroup": 0 }
+  "fallback": {
+    "flowGroup": "A",
+    "posterGroup": 0
+  }
 }
